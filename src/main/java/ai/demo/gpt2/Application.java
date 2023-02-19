@@ -18,7 +18,7 @@ public class Application
 
         Config config = init(args);
 
-        // Load trained parameter files
+        // Tanítás során előállított paraméterek betöltése
         System.out.print("\nLoading trained parameters... ");
         Parameters parameters = new Parameters(config);
         System.out.println("Done.");
@@ -29,30 +29,30 @@ public class Application
 
         while (true)
         {
-            // Read input text
+            // Bemenő szöveg bekérése
             System.out.print("\nInput text: ");
             BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
             String input = reader.readLine();
             if (input.equalsIgnoreCase("q")) break;
 
-            // Split the input text into tokens
+            // Szöveg tokenekké szabdalása
             List<Integer> inputTokens = config.tokenizer.encode(input);
 
-            // Use the Transformer
+            // Transformer meghívása
             List<Integer> outputTokens = transformer.processTokens(inputTokens);
 
-            // Convert the output to text and print it
+            // Eredmény szöveggé alakítása és kiírása
             String response = config.tokenizer.decode(outputTokens);
             System.out.println(/*response*/); // Commented out because the system is slow, and we printed already the text (token by token)
 
-            // Starting a completely new session with every input, because this system isn't for chat
+            // Minden alkalommal egy teljesen új menetet kezdünk, mert ez a rendszer nem csetelésre való
             transformer.clear();
         }
     }
 
     private static Config init(String[] args)
     {
-        // Default values
+        // Default értékek
         ModelType modelType = ModelType.SMALL;
         UtilType utilType = UtilType.ND4J;
         String parametersPath = System.getProperty("user.dir") + "/parameters";
@@ -61,7 +61,7 @@ public class Application
 
         if (args != null)
         {
-            // Iterate over the passed parameters and override the default values
+            // Végismegyünk az átadott paramétereken, és felülírjuk a default értékeket
             for (String arg : args)
             {
                 String[] parts = arg.split("=");
@@ -92,7 +92,7 @@ public class Application
         System.out.println("Max length: " + maxLength);
         System.out.println("TopK: " + topK);
 
-        // Memory check
+        // Memória-méret ellenőrzés
         long maxMemory = Runtime.getRuntime().maxMemory();
 
         if (modelType.minMemory * 1024 * 1024 > maxMemory)

@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Decoder-only Transformer implementation, same architecture as OpenAI GPT-2
+ * Csak dekóderekből álló Transformer megvalósítás, ugyanolyan, mint az OpenAI GPT-2
  */
 public class Transformer
 {
@@ -20,7 +20,7 @@ public class Transformer
     private final TransformerDecoder[] decoders;
 
     /**
-     * Constructor for the Transformer (initialize values)
+     * Konstruktor, értékek inicializálása
      */
     public Transformer(Config config, Parameters params)
     {
@@ -37,53 +37,54 @@ public class Transformer
     }
 
     /**
-     * Transformer token processing logic
+     * Transformer token-adagolási logika
      *
-     * This method implements the logic how the input tokens and the new and new generated tokens are passed to the transformer
+     * Ez a metódus adagolja be a bemenő tokeneket a Transformernek,
+     * majd az utolsó bemenetre adott kimenetet (eredményt) újra és újra beadja bemenetként
      *
-     * @param inputTokens List of tokens, representing the provided input text.
-     * @return - list of generated tokens.
+     * @param inputTokens A bemenő szöveg tokenjeinek listája
+     * @return - Az összes eredményül kapott token listája
      */
     public List<Integer> processTokens(List<Integer> inputTokens)
     {
-        // Collector of the generated new tokens
+        // Előállított tokenek gyűjtője
         List<Integer> result = new ArrayList<>();
 
-        // Counter of the position of the tokens within the text
+        // Szövegen belüli pozíció számlálója
         int pos = 0;
 
         if (inputTokens.size() == 0)
         {
-            // If the input is empty, use the END_OF_TEXT token as input
+            // Ha üres a bemenet, egy END_OF_TEXT tokent használunk helyette
             inputTokens.add(END_OF_TEXT);
         }
         else
         {
-            // Iterating over on the input tokens (excluding the last one) and processing these by the transformer
+            // Végigmegyünk a bemenő tokeneken (leszámítva az utolsót), és beadjuk őket a Transformernek
             for (; pos < inputTokens.size() - 1; pos++)
             {
-                // We are not interested in the result of the process (no return value),
-                // but the inner state will be stored within the decoders (generated key and value vectors)
+                // A Transformer kimenete most még nem érdekel minket, ezért nem olvassuk ki a visszatérési értéket,
+                // de ezalatt a dekóderek eltárolják az adott tokenre vonatkozó adatokat (előállított key és value vektorokat)
                 processToken(pos, inputTokens.get(pos));
             }
         }
 
-        // Processing the last input token. The output will be the first new token
+        // Az utolsó bemenő token feldolgozása. A kimeneti érték lesz az első újonnan generált token
         float[] embedding = processToken(pos, inputTokens.get(pos));
         int nextToken = determineOutput(embedding);
         result.add(nextToken);
 
-        // Now we have to use the transformer again an again, getting new and new tokens, for input passing the previous output
+        // Ezután az újonnan kapott tokeneket újra és újra beadjuk a Transformernek, még újabb tokeneket generálva
         for (pos++; pos < config.maxLength + inputTokens.size(); pos++)
         {
-            // Add the previously generated new token as input
+            // Az előző menetben generált token feldolgozása
             embedding = processToken(pos, nextToken);
 
-            // The output will be the next new token
+            // Az eredményül kapott lehetőségek közül kiválasztunk egyet
             nextToken = determineOutput(embedding);
             result.add(nextToken);
 
-            // Exit if the end-of-text token was chosen or the context size is reached
+            // Kilépés, ha az eredmény az END_OF_TEXT token volt, vagy elértük a maximum tokenszámot
             if (nextToken == END_OF_TEXT || (inputTokens.size() + result.size() >= config.modelType.contextSize)) break;
         }
 
@@ -91,28 +92,28 @@ public class Transformer
     }
 
     /**
-     * Transformer logic for a single token processing
+     * Tranformer logika - egyetlen token feldolgozása
      *
-     * @param pos - Position of the token within the provided text
-     * @param token - The token id of the actual token
-     * @return the embedding (representation) of the token after it is processed by the transformer
-     * (Meantime the inner state will be stored, so subsequent transformer executions will use the key and value matrices of the previous tokens)
+     * @param pos - Aktuális bemenő token pozíciója (hanyadik a szövegben)
+     * @param token - Az aktuális bemenő token azonosítója
+     * @return eredményül egy embedding vektort kapunk
+     * (Közben a dekóderek eltárolják a key és value vektorokat, melyeket későbbi tokenek feldolgozása során használni fogunk.)
      */
     private float[] processToken(int pos, int token)
     {
-        // Word token embedding
+        // Kikeressük a bemenő tokenhez tartozó embedding vektort - ezen zajlik majd a feldolgozás
         float[] embedding = params.tokenEmbeddings[token];
 
-        // Position embedding
+        // Hozzáadjuk a pozícióra jellemző információt
         embedding = util.addVectors(embedding, params.positionEmbeddings[pos]);
 
-        // Decoder stack
+        // Dekóderek sorozata
         for (TransformerDecoder decoder : decoders)
         {
             embedding = decoder.calculate(embedding);
         }
 
-        // Final normalization
+        // Utolsó normalizáció
         embedding = util.normalize(embedding, EPSILON);
         for (int i = 0; i < embedding.length; i++)
         {
@@ -123,32 +124,36 @@ public class Transformer
     }
 
     /**
-     * Determine the next token, based on the output of the transformer
+     * Meghatározzuk (kiválasztjuk) az eredmény tokent a kimeneti embedding alapján
      *
-     * @param embedding - The output of the transformer
-     * @return the token id of the new token
+     * @param embedding - a feldolgozás során eredményül kapott embedding
+     * @return a kiválasztott token azonosítója
      */
     private int determineOutput(float[] embedding)
     {
-        // Transforming the embedding into token probabilities*, using a simple matrix multiplication
-        // The embedding is a vector (matrix with a single row), so the dimensions are: 1 x embeddingSize
-        // The transposed token embedding matrix has a dimension of embeddingSize x 50257
-        // That's why the result of the matrix multiplication will have a dimension of 1 x 50257, so simply 50257 numbers
-        // This will be treated as a list of token probabilities, ordered by the token id
+        // A tokenek valószínűségét* egy egyszerű mátrix-szorzással kaphatjuk meg.
+        // Az itt bemenetül kapott embedding egy vektor (vagyis egysoros mátrix), tehát a dimenziói: 1 * embedding-hossz.
+        // A betanítás során előállított word-token-embedding (wte) mátrix egy hatalmas táblázat,
+        // amely minden tokenhez hozzárendel egy kiinduló embeddinget, vagyis ennek dimenziói: 50257 * embedding-hossz.
+        // Az 1 * embedding-hossz mátrixot meg lehet szorozni egy embedding-hossz * 50257 méretűvel (a wte transzponáltjával),
+        // az eredmény pedig egy 1 * 50257 méretű mátrix lesz, vagyis 50257 darab szám,
+        // amely token-valószínűségekként* értelmezendő, a token azonosítók szerinti sorrendben.
 
-        // * This isn't a real probability, but similar, called logit. logit = ln(probability / 1 - probability)
-        //   This value can be negative as well, but lower value means lower probability,
-        //   so we can use this value filtering out the small probabilities
+        // * Valójában ez nem valószínűség, de egy ahhoz hasonló dolog, amit logit-nak neveznek. logit = ln(valószínűség / 1 - valószínűség)
+        //   A valószínűség egy 0 és 1 közti érték, míg a logit lehet negatív is, és tetszőleges méretű,
+        //   de a kisebb logit kisebb valószínűséget jelent, ezért a logit-ok végzett szűrés (legnagyobb értékek megtartása)
+        //   valószínűségeken végzett szűrésre is jó.
         float[] logits = util.multiplyVectorByTransposedMatrix(embedding, params.tokenEmbeddings);
 
-        // topK filtering
+        // Itt meg lehetne valósítani a temperature és topP alapú szűrést is, de most csak a topK-t csináltam meg:
+        // temperature logikája: el kell osztani a logit értékeket a temperature értékével (0 és 1 közti számmal)
+        // topP szűrés logikája: a valószínűség szerint csökkenő sorrendbe állított lehetőségek közül azokat kell meghagyni,
+        // melyek valószínűsége együtt elér egy bizonyos szintet (a többit elvetjük)
 
-        // It would be possible to implement here the temperature and topP filter as well:
-        // temperature: divide the logits by the temperature (value between 0 and 1)
-        // topP filter: on an ordered list of probabilities filter out the remaining after reaching a certain sum percentage
+        // topK szűrés
 
-        // Converting the list of logits, ordered by token id into a matrix with two columns:
-        // The first column is the logits, the second column is the token id (index)
+        // A logitok listáját egy két oszlopból álló mátrix-szá alakítjuk:
+        // Az első oszlop a logit, a második pedig a token azonosító (hanyadik token)
         float[][] indexedLogits = new float[logits.length][2];
         for (int i = 0; i < logits.length; i++)
         {
@@ -156,36 +161,37 @@ public class Transformer
             indexedLogits[i][1] = i;
         }
 
-        // Now we can sort the rows in this matrix, and the token id information will remain available
+        // Az első oszlop (logit) alapján csökkenő sorrendbe tesszük a sorokat
+        // (A második oszlop őrzi az eredeti sorrendet, vagyis a token azonosítóját.)
         float[][] sortedLogits = util.sort(indexedLogits);
 
-        // Retain the top k elements (filtering out the rest)
-        // We can omit the token id because we can find it in the sortedLogits array
+        // Hagyjuk meg a legjobb valamennyi (top k) értéket, a többi nem kell
+        // (Nem tároltam el újra az index oszlopot is, mert azt úgyis meg lehet találni a sortedLogits táblázatban.)
         float[] filteredLogits = new float[config.topK];
         for (int i = 0; i < config.topK; i++)
         {
             filteredLogits[i] = sortedLogits[i][0];
         }
 
-        // Convert the logits into probabilities, using softmax
+        // A logit értékek valószínűséggé konvertálása a softmax függvény segítségével
         float[] probabilities = util.softmax(filteredLogits);
 
-        // Pick one token randomly, using a weighted random selection.
+        // Súlyozott random választással válasszunk ki egy értéket a megmaradtak közül
         int index = util.weightedRandomPick(probabilities);
 
-        // Lookup the token id
+        // Olvassuk ki az ehhez tartozó token azonosítót
         int selectedTokenId = (int)sortedLogits[index][1];
 
-        // Print the generated tokens one by one.
-        // This isn't a perfect solution, because some words or letters represented by multiple tokens.
-        // But the system is slow, it's better to see the progress than waiting till the end.
+        // Kiírjuk az aktuálisan kiválasztott token értékét egyesével
+        // Nem tökéletes megoldás, hogy ezt itt írjuk ki, mert néhány betű vagy szó több tokenből áll,
+        // de túl lassú a rendszer ahhoz, hogy az egész végét kivárjuk, tehát kiírom inkább őket azonnal.
         System.out.print(config.tokenizer.decode(List.of(selectedTokenId)));
 
         return selectedTokenId;
     }
 
     /**
-     * Clear stored values in all decoders to start a new session
+     * A dekóderekben áltárolt értékek törlése, hogy egy új menet kezdődhessen
      */
     public void clear()
     {

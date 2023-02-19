@@ -27,7 +27,7 @@ public class TransformerDecoder
         this.embeddingSize = config.modelType.embeddingSize;
         this.headCount = config.modelType.headCount;
 
-        // The vector size is always 64, so this is always 8, it is possible to convert to int.
+        // A fejenkénti (head-enkénti) vektorméret mindig 64, tehát a gyök vektorméret mindig 8, így gond nélkül egésszé konvertálhatjuk
         this.attentionDividend = (int) sqrt(embeddingSize / headCount);
 
         this.params = params;
@@ -36,38 +36,50 @@ public class TransformerDecoder
     }
 
     /**
-     * Decoder logic
+     * Dekóder logika
      *
-     * @param input - input embedding
-     * @return output embedding
+     * @param input - bemenő embedding értékek
+     * @return kimenő embedding értékek
      */
     public float[] calculate(float[] input)
     {
-        // Attention block
+        // Figyelem (attention) mechanizmus
         float[] result = attentionBlock(input);
 
-        // Feed forward block
+        // Előrecsatolt (egyszerű) neurális hálózat
         return feedForwardBlock(result);
     }
 
     private float[] attentionBlock(float[] input)
     {
-        // Normalization
+        // Normalizáció
         float[] result = normalize(input, params.norm1Weights, params.norm1Biases);
 
-        // Attention layer
+        // Attention-réteg
         result = attention(result);
 
-        // Residual connection
+        // Residual connection, vagyis az átalakítás előtti érték hozzáadása az eredményhez
+        return util.addVectors(result, input);
+    }
+
+    private float[] feedForwardBlock(float[] input)
+    {
+        // Normalizáció
+        float[] result = normalize(input, params.norm2Weights, params.norm2Biases);
+
+        // Neurális hálózat rétegei
+        result = feedForward(result);
+
+        // Residual connection, vagyis az átalakítás előtti érték hozzáadása az eredményhez
         return util.addVectors(result, input);
     }
 
     private float[] normalize(float[] input, float[] weights, float[] biases)
     {
-        // Standard normalization
+        // Standard normalizáció
         float[] result = util.normalize(input, epsilon);
 
-        // Applying the trained weights and biases
+        // A tanulás során előállított súlyok és eltolás hozzáadása
         for (int i = 0; i < input.length; i++)
         {
             result[i] = result[i] * weights[i] + biases[i];
@@ -76,60 +88,49 @@ public class TransformerDecoder
         return result;
     }
 
-    private float[] feedForwardBlock(float[] input)
-    {
-        // Normalization
-        float[] result = normalize(input, params.norm2Weights, params.norm2Biases);
-
-        // Feed forward layers
-        result = feedForward(result);
-
-        // Residual connection
-        return util.addVectors(result, input);
-    }
-
     private float[] attention(float[] embedding)
     {
-        // Calculate the query, key and value vectors for the actual token:
+        // Először kiszámítjuk az aktuális tokenre vonatkozó query, key és value vektorokat:
 
-        // params.attentionWeighs contains 3 matrices (WQ, WK and WV), concatenated into a single matrix
-        // params.attentionBiases similarly contains 3 vectors
-        // The query, key and value matrices for the actual token is created using the actual embedding value
-        // and the WQ, WK an WV matrices (+biases):
+        // A tanítás során előállt params.attentionWeighs 3 mátrixot tartalmaz (WQ, WK and WV),
+        // melyek egy nagyobb mátrix-szá vannak összeillesztve.
+        // A params.attentionBiases ugyanígy három vektort tartalmaz, összefűzve.
+        // Az aktuális token query, key és value vektorai úgy állnak elő,
+        // hogy az aktuális embedding vektort megszorozzuk a WQ, WK és WV mátrixokkal (és hozzáadjuk a bias-t):
         float[] weighted = util.multiplyVectorByMatrix(embedding, params.attentionWeighs); // [3 x embeddingSize]
         float[] biased = util.addVectors(weighted, params.attentionBiases); // [3 x embeddingSize]
 
-        // Split the result matrix into 3 parts for the query, key and values:
+        // Szétszedjük az eredménymátrixot három szeletre (query, key és value vektorok):
         float[][] segments = util.splitVector(biased, 3); // [3][embeddingSize]
 
-        // Split the query, key and value vectors into pieces for all heads
+        // Mindhárom vektort fejenként (head) további részekre hasítjuk:
         float[][] queries = util.splitVector(segments[0], headCount); // [headCount][embeddingSize / headCount]
         float[][] keys = util.splitVector(segments[1], headCount); // [headCount][embeddingSize / headCount]
         float[][] values = util.splitVector(segments[2], headCount); // [headCount][embeddingSize / headCount]
 
-        // Store the keys and values (these will be available while the following tokens will be processed)
+        // A key és value vektorokat eltároljuk (ezek elérhetők lesznek a következő tokenek feldolgozása során is)
         storedKeys.add(keys);
         storedValues.add(values);
 
         float[][] sums = new float[headCount][embeddingSize / headCount];
 
-        // Scoring the previous tokens (including the actual), separately for all heads
-        // Again: we have to score not only the previous, but the actual token as well
-        // That is the reason of that we already added the actual key/value to the stored keys/values
+        // Fejenként (head) pontozzuk (kiszámítunk egy score értéket) a korábbi tokeneket az aktuális nézőpontjából (beleértve saját magát is).
+        // (Tehát nem csak a korábbiakat, saját magát is pontozza a token,
+        // ezért volt jó, hogy az aktuális token key és value értékét már korábban hozzáadtuk az eltároltakhoz.)
         for (int head = 0; head < headCount; head++)
         {
-            // Calculate the scores
+            // Számoljuk ki a score-t
             float[] scores = new float[storedKeys.size()];
             for (int pos = 0; pos < storedKeys.size(); pos++)
             {
-                // The score is calculated multiplying the "actual" query vector and the "related" key vector
+                // A score az aktuális token query vektorának és a másik key vektorának szorzatával áll elő (dot product)
                 scores[pos] = util.dotProduct(queries[head], storedKeys.get(pos)[head]) / attentionDividend;
             }
 
             // Softmax
             scores = util.softmax(scores);
 
-            // Multiply the value matrices with the scores, and sum up
+            // A kapott score-t szorozzuk meg a value vektorokkal, és adjuk ezeket össze
             for (int pos = 0; pos < storedKeys.size(); pos++)
             {
                 float[] sum = util.multiplyVectorByScalar(storedValues.get(pos)[head], scores[pos]);
@@ -137,47 +138,48 @@ public class TransformerDecoder
             }
         }
 
-        // Concatenate the results for all heads
+        // Fűzzük össze a fejenként (head) kapott értékeket tartalmazó mátrix sorait egyetlen hosszú vektorrá
         float[] flatSums = util.flattenMatrix(sums);
 
-        // Apply the attention projection weights and biases
+        // Szorozzuk meg az eredeményül kapott vektort a tanítás során előállt attention projection sújokkal...
         float[] result = util.multiplyVectorByMatrix(flatSums, params.attentionProjectionWeights);
 
+        // ... és adjuk hozzá az eltolást (bias) is
         return util.addVectors(result, params.attentionProjectionBiases);
     }
 
     private float[] feedForward(float[] embedding)
     {
-        // We have a simple feed forward neural network, which has only two layers:
-        // - the first layer has 4 x <embeddingSize> neurons (using a gelu activation function)
-        // - the second layer has <embeddingSize> neurons (without activation function, simply resulting the weighted + biased input)
+        // Egy nagyon egyszerű neurális hálózatunk van, amely csupán két rétegből áll:
+        // - az első réteg az embedding-hossz négyszeresének megfelelő számú neuronból áll (gelu aktivációs függvény használatával)
+        // - a második réteg az embedding-hosszal megegyező számú neuronból áll (aktivációs függvény nélkül)
 
-        // The calculation of a feed forward neutron layer is simply a multiplication of the input vector by the weight matrix,
-        // and a vector to vector addition using the biases
+        // Egy egyszerű előrecsatolt neuron-réteg eredményének kiszámítása megegyezik egy vektor és a súlyok mátrixának szorzatával,
+        // majd az eltolás (bias) hozzáadásával
 
-        // First layer
+        // Első neuron-réteg
         float[] output = util.multiplyVectorByMatrix(embedding, params.layer1Weights);
         output = util.addVectors(output, params.layer1Biases);
 
-        // Using the gelu activation function, calculating the output of the first layer
+        // Az első réteg esetén használjuk az aktivációs függvényt (gelu)
         for (int neuron = 0; neuron < 4 * embeddingSize; neuron++)
         {
             output[neuron] = gelu(output[neuron]);
         }
 
-        // Second layer (no activation function call)
+        // Második neuron-réteg (nincs aktivációs függvény-hívás)
         output = util.multiplyVectorByMatrix(output, params.layer2Weights);
         return util.addVectors(output, params.layer2Biases);
     }
 
-    // Gaussian Error Linear Unit (GELU) cumulative distribution activation function (approximate implementation)
+    // Gaussian Error Linear Unit (GELU) aktivációs függvény (közelítő megvalósítás)
     private static float gelu(float value)
     {
         return (float) (0.5 * value * (1 + tanh(sqrt(2 / PI) * (value + 0.044715 * pow(value, 3)))));
     }
 
     /**
-     * Clear stored values to start a new session
+     * A dekóder által eltárolt értékek törlése
      */
     public void clear()
     {
