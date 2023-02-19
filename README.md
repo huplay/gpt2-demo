@@ -18,7 +18,8 @@ Steps:
     ```git clone https://github.com/huplay/gpt2-demo.git```
 
 
-3. Because of the GitHub repo size limit, the parameters for the MEDIUM, LARGE and XL versions added into separate repos:
+3. Download the parameter files with the trained data for the version you want to use. The default path is the gpt2-demo/parameters folder, so the simplest way copying these files under that folder, but you can configure it differently.   
+- SMALL: https://github.com/huplay/gpt2-demo-small-params
 - MEDIUM: https://github.com/huplay/gpt2-demo-medium-params
 - LARGE: https://github.com/huplay/gpt2-demo-large-params
 - XL: https://github.com/huplay/gpt2-demo-xl-params1,
