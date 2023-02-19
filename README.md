@@ -18,17 +18,30 @@ Steps:
     ```git clone https://github.com/huplay/gpt2-demo.git```
 
 
-3. Using a command line tool (`cmd`) enter into the directory:
+3. Because of the GitHub repo size limit, the parameters for the MEDIUM, LARGE and XL versions added into separate repos:
+- MEDIUM: https://github.com/huplay/gpt2-demo-medium-params
+- LARGE: https://github.com/huplay/gpt2-demo-large-params
+- XL: https://github.com/huplay/gpt2-demo-xl-params1,
+      
+   https://github.com/huplay/gpt2-demo-xl-params2
+
+   
+4. Because of the GitHub file size limit, the largest file within each version (wte.dat) is split into 100 MB chunks, so you have to combine these parts (   ```wte.001```, ```wte.002```...)
+
+   You can use the Total Commander's combine files function, or in command line: ```copy /B wte.001 + wte.002 wte.dat``` (For bigger version there will be wte.003 or wte.004 as well.)
+
+
+5. Using a command line tool (`cmd`) enter into the directory:
    
     ```cd gpt2-demo```
 
 
-4. Compile (build) the application:
+6. Compile (build) the application:
 
     ```mvn clean install```
 
 
-5. Execute the application:
+7. Execute the application:
 
     On Windows: ```run.bat``` (small version)
    
