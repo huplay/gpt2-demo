@@ -2,8 +2,7 @@ package ai.demo.gpt2;
 
 import ai.demo.gpt2.util.UtilType;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.List;
 
 public class Application

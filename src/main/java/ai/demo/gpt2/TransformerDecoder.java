@@ -91,21 +91,19 @@ public class TransformerDecoder
     private float[] attention(float[] embedding)
     {
         // Calculate the query, key and value vectors for the actual token:
+        float[] query = util.multiplyVectorByMatrix(embedding, params.queryWeighs);
+        query = util.addVectors(query, params.queryBiases);
 
-        // params.attentionWeighs contains 3 matrices (WQ, WK and WV), concatenated into a single matrix
-        // params.attentionBiases similarly contains 3 vectors
-        // The query, key and value matrices for the actual token is created using the actual embedding value
-        // and the WQ, WK an WV matrices (+biases):
-        float[] weighted = util.multiplyVectorByMatrix(embedding, params.attentionWeighs); // [3 x embeddingSize]
-        float[] biased = util.addVectors(weighted, params.attentionBiases); // [3 x embeddingSize]
+        float[] key = util.multiplyVectorByMatrix(embedding, params.keyWeighs);
+        key = util.addVectors(key, params.keyBiases);
 
-        // Split the result matrix into 3 parts for the query, key and values:
-        float[][] segments = util.splitVector(biased, 3); // [3][embeddingSize]
+        float[] value = util.multiplyVectorByMatrix(embedding, params.valueWeighs);
+        value = util.addVectors(value, params.valueBiases);
 
         // Split the query, key and value vectors into pieces for all heads
-        float[][] queries = util.splitVector(segments[0], headCount); // [headCount][embeddingSize / headCount]
-        float[][] keys = util.splitVector(segments[1], headCount); // [headCount][embeddingSize / headCount]
-        float[][] values = util.splitVector(segments[2], headCount); // [headCount][embeddingSize / headCount]
+        float[][] queries = util.splitVector(query, headCount);
+        float[][] keys = util.splitVector(key, headCount);
+        float[][] values = util.splitVector(value, headCount);
 
         // Store the keys and values (these will be available while the following tokens will be processed)
         storedKeys.add(keys);
@@ -141,9 +139,9 @@ public class TransformerDecoder
         float[] flatSums = util.flattenMatrix(sums);
 
         // Apply the attention projection weights and biases
-        float[] result = util.multiplyVectorByMatrix(flatSums, params.attentionProjectionWeights);
+        float[] result = util.multiplyVectorByMatrix(flatSums, params.projectionWeights);
 
-        return util.addVectors(result, params.attentionProjectionBiases);
+        return util.addVectors(result, params.projectionBiases);
     }
 
     private float[] feedForward(float[] embedding)
@@ -156,8 +154,8 @@ public class TransformerDecoder
         // and a vector to vector addition using the biases
 
         // First layer
-        float[] output = util.multiplyVectorByMatrix(embedding, params.layer1Weights);
-        output = util.addVectors(output, params.layer1Biases);
+        float[] output = util.multiplyVectorByMatrix(embedding, params.feedForwardLayer1Weights);
+        output = util.addVectors(output, params.feedForwardLayer1Biases);
 
         // Using the gelu activation function, calculating the output of the first layer
         for (int neuron = 0; neuron < 4 * embeddingSize; neuron++)
@@ -166,8 +164,8 @@ public class TransformerDecoder
         }
 
         // Second layer (no activation function call)
-        output = util.multiplyVectorByMatrix(output, params.layer2Weights);
-        return util.addVectors(output, params.layer2Biases);
+        output = util.multiplyVectorByMatrix(output, params.feedForwardLayer2Weights);
+        return util.addVectors(output, params.feedForwardLayer2Biases);
     }
 
     // Gaussian Error Linear Unit (GELU) cumulative distribution activation function (approximate implementation)
