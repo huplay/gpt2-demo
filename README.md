@@ -26,23 +26,18 @@ Lépések:
       
    https://github.com/huplay/gpt2-demo-xl-params2
 
-   
-4. Sajnos a GitHub-on van egy maximum fájlméret korlát, ezért a legnagyobb paraméterfájlokat nem lehet egyben feltölteni. (Ez minden méret esetén csupán a wte.dat fájl-t jelenti.) Ezért ezt több részre szabdalva töltöttem fel, de használat előtt egyesíteni kell ezeket (   ```wte.001```, ```wte.002```...)
 
-   Az egyesítés megoldható a Total Commander "combine files" (fájlegyesítés?) funkciójával, vagy a cmd-n belül az alábbi paranccsal: ```copy /B wte.001 + wte.002 wte.dat``` (A nagyobb változatok esetén + wte.003 vagy + wte.004 is szükséges.)
-
-
-5. Parancssor program (`cmd`) használatával lépjünk be a GPT2-demo főkönyvtárába:
+4. Parancssor program (`cmd`) használatával lépjünk be a GPT2-demo főkönyvtárába:
    
     ```cd gpt2-demo```
 
 
-6. Fordítsuk le a kódot a Maven használatával (build):
+5. Fordítsuk le a kódot a Maven használatával (build):
 
     ```mvn clean install```
 
 
-7. Indítsuk el a programot:
+6. Indítsuk el a programot:
 
     Windows alatt: ```run.bat``` (SMALL verzió)
    

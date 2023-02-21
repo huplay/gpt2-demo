@@ -1,5 +1,9 @@
 package ai.demo.gpt2.util;
 
+import java.io.PrintStream;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 public enum UtilType
 {
     STANDARD(new StandardUtil()),
@@ -22,7 +26,8 @@ public enum UtilType
         }
         catch (IllegalArgumentException e)
         {
-            System.out.println("\nWARNING: The selected utility type does not exists (" + name + "), only STANDARD and ND4J are available.\n");
+            PrintStream out = new PrintStream(System.out, true, UTF_8);
+            out.println("\nWARNING: The selected utility type does not exists (" + name + "), only STANDARD and ND4J are available.\n");
         }
 
         return type;

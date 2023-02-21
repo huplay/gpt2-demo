@@ -90,23 +90,20 @@ public class TransformerDecoder
 
     private float[] attention(float[] embedding)
     {
-        // Először kiszámítjuk az aktuális tokenre vonatkozó query, key és value vektorokat:
+        // Az aktuális tokenre vonatkozó query, key és value vektorok előállítása:
+        float[] query = util.multiplyVectorByMatrix(embedding, params.queryWeighs);
+        query = util.addVectors(query, params.queryBiases);
 
-        // A tanítás során előállt params.attentionWeighs 3 mátrixot tartalmaz (WQ, WK and WV),
-        // melyek egy nagyobb mátrix-szá vannak összeillesztve.
-        // A params.attentionBiases ugyanígy három vektort tartalmaz, összefűzve.
-        // Az aktuális token query, key és value vektorai úgy állnak elő,
-        // hogy az aktuális embedding vektort megszorozzuk a WQ, WK és WV mátrixokkal (és hozzáadjuk a bias-t):
-        float[] weighted = util.multiplyVectorByMatrix(embedding, params.attentionWeighs); // [3 x embeddingSize]
-        float[] biased = util.addVectors(weighted, params.attentionBiases); // [3 x embeddingSize]
+        float[] key = util.multiplyVectorByMatrix(embedding, params.keyWeighs);
+        key = util.addVectors(key, params.keyBiases);
 
-        // Szétszedjük az eredménymátrixot három szeletre (query, key és value vektorok):
-        float[][] segments = util.splitVector(biased, 3); // [3][embeddingSize]
+        float[] value = util.multiplyVectorByMatrix(embedding, params.valueWeighs);
+        value = util.addVectors(value, params.valueBiases);
 
         // Mindhárom vektort fejenként (head) további részekre hasítjuk:
-        float[][] queries = util.splitVector(segments[0], headCount); // [headCount][embeddingSize / headCount]
-        float[][] keys = util.splitVector(segments[1], headCount); // [headCount][embeddingSize / headCount]
-        float[][] values = util.splitVector(segments[2], headCount); // [headCount][embeddingSize / headCount]
+        float[][] queries = util.splitVector(query, headCount);
+        float[][] keys = util.splitVector(key, headCount);
+        float[][] values = util.splitVector(value, headCount);
 
         // A key és value vektorokat eltároljuk (ezek elérhetők lesznek a következő tokenek feldolgozása során is)
         storedKeys.add(keys);
@@ -142,10 +139,10 @@ public class TransformerDecoder
         float[] flatSums = util.flattenMatrix(sums);
 
         // Szorozzuk meg az eredeményül kapott vektort a tanítás során előállt attention projection sújokkal...
-        float[] result = util.multiplyVectorByMatrix(flatSums, params.attentionProjectionWeights);
+        float[] result = util.multiplyVectorByMatrix(flatSums, params.projectionWeights);
 
         // ... és adjuk hozzá az eltolást (bias) is
-        return util.addVectors(result, params.attentionProjectionBiases);
+        return util.addVectors(result, params.projectionBiases);
     }
 
     private float[] feedForward(float[] embedding)
@@ -158,8 +155,8 @@ public class TransformerDecoder
         // majd az eltolás (bias) hozzáadásával
 
         // Első neuron-réteg
-        float[] output = util.multiplyVectorByMatrix(embedding, params.layer1Weights);
-        output = util.addVectors(output, params.layer1Biases);
+        float[] output = util.multiplyVectorByMatrix(embedding, params.feedForwardLayer1Weights);
+        output = util.addVectors(output, params.feedForwardLayer1Biases);
 
         // Az első réteg esetén használjuk az aktivációs függvényt (gelu)
         for (int neuron = 0; neuron < 4 * embeddingSize; neuron++)
@@ -168,8 +165,8 @@ public class TransformerDecoder
         }
 
         // Második neuron-réteg (nincs aktivációs függvény-hívás)
-        output = util.multiplyVectorByMatrix(output, params.layer2Weights);
-        return util.addVectors(output, params.layer2Biases);
+        output = util.multiplyVectorByMatrix(output, params.feedForwardLayer2Weights);
+        return util.addVectors(output, params.feedForwardLayer2Biases);
     }
 
     // Gaussian Error Linear Unit (GELU) aktivációs függvény (közelítő megvalósítás)

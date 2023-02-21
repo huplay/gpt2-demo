@@ -2,35 +2,38 @@ package ai.demo.gpt2;
 
 import ai.demo.gpt2.util.UtilType;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.List;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Application
 {
     public static void main(String... args) throws Exception
     {
-        System.out.println("  _____________________________      ________        ___");
-        System.out.println(" /  _____/\\______   \\__    ___/      \\_____  \\    __|  /____   _____   ____");
-        System.out.println("/   \\  ___ |     ___/ |    |  ______  /  ____/   / __ |/ __ \\ /     \\ /  _ \\");
-        System.out.println("\\    \\_\\  \\|    |     |    | /_____/ /       \\  / /_/ \\  ___/|  Y Y  (  <_> )");
-        System.out.println(" \\________/|____|     |____|         \\________\\ \\_____|\\_____>__|_|__/\\____/\n");
+        PrintStream out = new PrintStream(System.out, true, UTF_8);
+        out.println("  _____________________________      ________        ___");
+        out.println(" /  _____/\\______   \\__    ___/      \\_____  \\    __|  /____   _____   ____");
+        out.println("/   \\  ___ |     ___/ |    |  ______  /  ____/   / __ |/ __ \\ /     \\ /  _ \\");
+        out.println("\\    \\_\\  \\|    |     |    | /_____/ /       \\  / /_/ \\  ___/|  Y Y  (  <_> )");
+        out.println(" \\________/|____|     |____|         \\________\\ \\_____|\\_____>__|_|__/\\____/\n");
 
         Config config = init(args);
 
         // Tanítás során előállított paraméterek betöltése
-        System.out.print("\nLoading trained parameters... ");
-        Parameters parameters = new Parameters(config);
-        System.out.println("Done.");
 
-        System.out.println("Free memory: " + formatMemorySize(Runtime.getRuntime().freeMemory()));
+        out.print("\nBetanított paraméterek betöltése... ");
+        Parameters parameters = new Parameters(config);
+        out.println("Kész.");
+
+        out.println("Szabad memória: " + formatMemorySize(Runtime.getRuntime().freeMemory()));
 
         Transformer transformer = new Transformer(config, parameters);
 
         while (true)
         {
             // Bemenő szöveg bekérése
-            System.out.print("\nInput text: ");
+            out.print("\nInput szöveg: ");
             BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
             String input = reader.readLine();
             if (input.equalsIgnoreCase("q")) break;
@@ -43,7 +46,7 @@ public class Application
 
             // Eredmény szöveggé alakítása és kiírása
             String response = config.tokenizer.decode(outputTokens);
-            System.out.println(/*response*/); // Commented out because the system is slow, and we printed already the text (token by token)
+            out.println(/*response*/); // A lassú válaszidő miatt tokenenként kiírtuk már a szöveget, ezért ez a végső kiírás ki lett kommentezve
 
             // Minden alkalommal egy teljesen új menetet kezdünk, mert ez a rendszer nem csetelésre való
             transformer.clear();
@@ -53,6 +56,7 @@ public class Application
     private static Config init(String[] args)
     {
         // Default értékek
+        PrintStream out = new PrintStream(System.out, true, UTF_8);
         ModelType modelType = ModelType.SMALL;
         UtilType utilType = UtilType.ND4J;
         String parametersPath = System.getProperty("user.dir") + "/parameters";
@@ -81,26 +85,26 @@ public class Application
                 }
                 else
                 {
-                    System.out.println("\nWARNING: Unrecognisable argument: " + arg + "\n");
+                    out.println("\nFigyelem: Értelmezhetetlen paraméter: " + arg + "\n");
                 }
             }
         }
 
-        System.out.println("Model type: " + modelType);
-        System.out.println("Utility type: " + utilType);
-        System.out.println("Parameter path: " + parametersPath);
-        System.out.println("Max length: " + maxLength);
-        System.out.println("TopK: " + topK);
+        out.println("Modell típusa: " + modelType);
+        out.println("Utility típusa: " + utilType);
+        out.println("Paraméterek útvonala: " + parametersPath);
+        out.println("Maximum hosszúság: " + maxLength);
+        out.println("TopK: " + topK);
 
         // Memória-méret ellenőrzés
         long maxMemory = Runtime.getRuntime().maxMemory();
 
         if (modelType.minMemory * 1024 * 1024 > maxMemory)
         {
-            System.out.println("\nERROR: Not enough memory to load parameters! Minimum memory: " + modelType.minMemory + " MByte.");
-            System.out.println("Available memory: " + formatMemorySize(maxMemory));
-            System.out.println("You can configure the available memory using the -Xmx and -Xms java flags.");
-            System.out.println("(See the batch files.)");
+            out.println("\nHIBA: Nincs elég memória a paraméterek betöltéséhez! Minimum memoria: " + modelType.minMemory + " MByte.");
+            out.println("Szabad memória: " + formatMemorySize(maxMemory));
+            out.println("Az elérhető memória mérete az -Xmx és -Xms java paraméterekkel állítható.");
+            out.println("(Lásd a .bat fájlokat!)");
 
             System.exit(0);
         }
@@ -120,7 +124,8 @@ public class Application
         }
         catch (Exception e)
         {
-            System.out.println("\nWARNING: The provided value can't be converted to integer (" + value + "). Default value will be used.\n");
+            PrintStream out = new PrintStream(System.out, true, UTF_8);
+            out.println("\nFigyelem: A megadott érték nem konvertálható egész számmá (" + value + "). Az alapértelmezett érték lesz használva.\n");
         }
 
         return ret;

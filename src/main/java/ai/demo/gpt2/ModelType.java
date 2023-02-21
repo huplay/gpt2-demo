@@ -1,5 +1,9 @@
 package ai.demo.gpt2;
 
+import java.io.PrintStream;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 public enum ModelType
 {
     // 124M
@@ -41,7 +45,8 @@ public enum ModelType
         }
         catch (IllegalArgumentException e)
         {
-            System.out.println("\nWARNING: The selected model type does not exists (" + name + "), only SMALL/MEDIUM/LARGE and XL are available.\n");
+            PrintStream out = new PrintStream(System.out, true, UTF_8);
+            out.println("\nWARNING: The selected model type does not exists (" + name + "), only SMALL/MEDIUM/LARGE and XL are available.\n");
         }
 
         return modelType;
