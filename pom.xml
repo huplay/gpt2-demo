@@ -51,7 +51,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>ai.demo.gpt2.Application</mainClass>
+                            <mainClass>Application</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

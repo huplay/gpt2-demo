@@ -1,5 +1,3 @@
-package ai.demo.gpt2.util;
-
 public interface Util
 {
     float[] addVectors(float[] vector1, float[] vector2);

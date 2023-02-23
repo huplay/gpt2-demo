@@ -1,9 +1,7 @@
-package ai.demo.gpt2.util;
-
 import static java.lang.Math.exp;
 import static java.lang.Math.sqrt;
 
-public class StandardUtil implements Util
+public class UtilStandard implements Util
 {
     @Override
     public float[] addVectors(float[] vector1, float[] vector2)

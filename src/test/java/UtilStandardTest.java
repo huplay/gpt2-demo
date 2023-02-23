@@ -1,11 +1,9 @@
-package ai.demo.gpt2.util;
-
 import org.junit.Test;
 
-public class StandardUtilTest
+public class UtilStandardTest
 {
-    private static final Util standardUtil = new StandardUtil();
-    private static final Util nd4jUtil = new Nd4jUtil();
+    private static final Util standardUtil = new UtilStandard();
+    private static final Util nd4jUtil = new UtilNd4j();
 
     @Test
     public void addVectorsTest()

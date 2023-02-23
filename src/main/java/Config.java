@@ -1,7 +1,3 @@
-package ai.demo.gpt2;
-
-import ai.demo.gpt2.util.UtilType;
-
 public class Config
 {
     public final ModelType modelType;
@@ -11,8 +7,8 @@ public class Config
     public final int maxLength;
     public final int topK;
 
-    public Config(ModelType modelType, UtilType utilType, String parametersPath, Tokenizer tokenizer,
-                  int maxLength, int topK)
+    public Config(ModelType modelType, UtilType utilType, String parametersPath, Tokenizer tokenizer, int maxLength,
+                  int topK)
     {
         this.modelType = modelType;
         this.utilType = utilType;

@@ -1,12 +1,5 @@
-package ai.demo.gpt2;
-
-import ai.demo.gpt2.util.Util;
-
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Csak dekóderekből álló Transformer megvalósítás, ugyanolyan, mint az OpenAI GPT-2
@@ -188,8 +181,7 @@ public class Transformer
         // Kiírjuk az aktuálisan kiválasztott token értékét egyesével
         // Nem tökéletes megoldás, hogy ezt itt írjuk ki, mert néhány betű vagy szó több tokenből áll,
         // de túl lassú a rendszer ahhoz, hogy az egész végét kivárjuk, tehát kiírom inkább őket azonnal.
-        PrintStream out = new PrintStream(System.out, true, UTF_8);
-        out.print(config.tokenizer.decode(List.of(selectedTokenId)));
+        Application.OUT.print(config.tokenizer.decode(List.of(selectedTokenId)));
 
         return selectedTokenId;
     }

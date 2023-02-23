@@ -1,8 +1,6 @@
-package ai.demo.gpt2.util;
-
 import org.nd4j.linalg.factory.Nd4j;
 
-public class Nd4jUtil implements Util
+public class UtilNd4j implements Util
 {
     @Override
     public float[] addVectors(float[] vector1, float[] vector2)
