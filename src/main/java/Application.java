@@ -1,35 +1,34 @@
-package ai.demo.gpt2;
-
-import ai.demo.gpt2.util.UtilType;
-
 import java.io.*;
 import java.util.List;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Application
 {
+    public static final PrintStream OUT = new PrintStream(System.out, true, UTF_8);
+
     public static void main(String... args) throws Exception
     {
-        System.out.println("  _____________________________      ________        ___");
-        System.out.println(" /  _____/\\______   \\__    ___/      \\_____  \\    __|  /____   _____   ____");
-        System.out.println("/   \\  ___ |     ___/ |    |  ______  /  ____/   / __ |/ __ \\ /     \\ /  _ \\");
-        System.out.println("\\    \\_\\  \\|    |     |    | /_____/ /       \\  / /_/ \\  ___/|  Y Y  (  <_> )");
-        System.out.println(" \\________/|____|     |____|         \\________\\ \\_____|\\_____>__|_|__/\\____/\n");
+        OUT.println("  _____________________________      ________        ___");
+        OUT.println(" /  _____/\\______   \\__    ___/      \\_____  \\    __|  /____   _____   ____");
+        OUT.println("/   \\  ___ |     ___/ |    |  ______  /  ____/   / __ |/ __ \\ /     \\ /  _ \\");
+        OUT.println("\\    \\_\\  \\|    |     |    | /_____/ /       \\  / /_/ \\  ___/|  Y Y  (  <_> )");
+        OUT.println(" \\________/|____|     |____|         \\________\\ \\_____|\\_____>__|_|__/\\____/\n");
 
         Config config = init(args);
 
         // Load trained parameter files
-        System.out.print("\nLoading trained parameters... ");
+        OUT.print("\nLoading trained parameters... ");
         Parameters parameters = new Parameters(config);
-        System.out.println("Done.");
+        OUT.println("Done.");
 
-        System.out.println("Free memory: " + formatMemorySize(Runtime.getRuntime().freeMemory()));
+        OUT.println("Free memory: " + formatMemorySize(Runtime.getRuntime().freeMemory()));
 
         Transformer transformer = new Transformer(config, parameters);
 
         while (true)
         {
             // Read input text
-            System.out.print("\nInput text: ");
+            OUT.print("\nInput text: ");
             BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
             String input = reader.readLine();
             if (input.equalsIgnoreCase("q")) break;
@@ -42,7 +41,7 @@ public class Application
 
             // Convert the output to text and print it
             String response = config.tokenizer.decode(outputTokens);
-            System.out.println(/*response*/); // Commented out because the system is slow, and we printed already the text (token by token)
+            OUT.println(/*response*/); // Commented out because the system is slow, and we printed already the text (token by token)
 
             // Starting a completely new session with every input, because this system isn't for chat
             transformer.clear();
@@ -80,26 +79,26 @@ public class Application
                 }
                 else
                 {
-                    System.out.println("\nWARNING: Unrecognisable argument: " + arg + "\n");
+                    OUT.println("\nWARNING: Unrecognisable argument: " + arg + "\n");
                 }
             }
         }
 
-        System.out.println("Model type: " + modelType);
-        System.out.println("Utility type: " + utilType);
-        System.out.println("Parameter path: " + parametersPath);
-        System.out.println("Max length: " + maxLength);
-        System.out.println("TopK: " + topK);
+        OUT.println("Model type: " + modelType);
+        OUT.println("Utility type: " + utilType);
+        OUT.println("Parameter path: " + parametersPath);
+        OUT.println("Max length: " + maxLength);
+        OUT.println("TopK: " + topK);
 
         // Memory check
         long maxMemory = Runtime.getRuntime().maxMemory();
 
         if (modelType.minMemory * 1024 * 1024 > maxMemory)
         {
-            System.out.println("\nERROR: Not enough memory to load parameters! Minimum memory: " + modelType.minMemory + " MByte.");
-            System.out.println("Available memory: " + formatMemorySize(maxMemory));
-            System.out.println("You can configure the available memory using the -Xmx and -Xms java flags.");
-            System.out.println("(See the batch files.)");
+            OUT.println("\nERROR: Not enough memory to load parameters! Minimum memory: " + modelType.minMemory + " MByte.");
+            OUT.println("Available memory: " + formatMemorySize(maxMemory));
+            OUT.println("You can configure the available memory using the -Xmx and -Xms java flags.");
+            OUT.println("(See the batch files.)");
 
             System.exit(0);
         }
@@ -119,7 +118,7 @@ public class Application
         }
         catch (Exception e)
         {
-            System.out.println("\nWARNING: The provided value can't be converted to integer (" + value + "). Default value will be used.\n");
+            OUT.println("\nWARNING: The provided value can't be converted to integer (" + value + "). Default value will be used.\n");
         }
 
         return ret;

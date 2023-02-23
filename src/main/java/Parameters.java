@@ -1,7 +1,3 @@
-package ai.demo.gpt2;
-
-import ai.demo.gpt2.util.Util;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.ByteBuffer;

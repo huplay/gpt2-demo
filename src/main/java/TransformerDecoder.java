@@ -1,7 +1,3 @@
-package ai.demo.gpt2;
-
-import ai.demo.gpt2.util.Util;
-
 import java.util.ArrayList;
 import java.util.List;
 

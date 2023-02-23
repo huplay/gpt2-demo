@@ -1,7 +1,3 @@
-package ai.demo.gpt2;
-
-import ai.demo.gpt2.util.Util;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -179,7 +175,7 @@ public class Transformer
         // Print the generated tokens one by one.
         // This isn't a perfect solution, because some words or letters represented by multiple tokens.
         // But the system is slow, it's better to see the progress than waiting till the end.
-        System.out.print(config.tokenizer.decode(List.of(selectedTokenId)));
+        Application.OUT.print(config.tokenizer.decode(List.of(selectedTokenId)));
 
         return selectedTokenId;
     }

@@ -1,5 +1,3 @@
-package ai.demo.gpt2;
-
 public enum ModelType
 {
     // 124M
@@ -41,7 +39,7 @@ public enum ModelType
         }
         catch (IllegalArgumentException e)
         {
-            System.out.println("\nWARNING: The selected model type does not exists (" + name + "), only SMALL/MEDIUM/LARGE and XL are available.\n");
+            Application.OUT.println("\nWARNING: The selected model type does not exists (" + name + "), only SMALL/MEDIUM/LARGE and XL are available.\n");
         }
 
         return modelType;

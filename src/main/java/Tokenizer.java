@@ -1,5 +1,3 @@
-package ai.demo.gpt2;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.*;
@@ -86,7 +84,7 @@ public class Tokenizer
             ByteBuffer buffer = StandardCharsets.UTF_8.encode(matcher.group());
             while (buffer.hasRemaining())
             {
-                int value = (int)buffer.get();
+                int value = buffer.get();
                 if (value < 0) value = value & 0xff;
                 match.append(charEncoding.get(value));
             }

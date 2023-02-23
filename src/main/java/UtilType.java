@@ -1,9 +1,7 @@
-package ai.demo.gpt2.util;
-
 public enum UtilType
 {
-    STANDARD(new StandardUtil()),
-    ND4J(new Nd4jUtil());
+    STANDARD(new UtilStandard()),
+    ND4J(new UtilNd4j());
 
     public final Util util;
 
@@ -22,7 +20,7 @@ public enum UtilType
         }
         catch (IllegalArgumentException e)
         {
-            System.out.println("\nWARNING: The selected utility type does not exists (" + name + "), only STANDARD and ND4J are available.\n");
+            Application.OUT.println("\nWARNING: The selected utility type does not exists (" + name + "), only STANDARD and ND4J are available.\n");
         }
 
         return type;
