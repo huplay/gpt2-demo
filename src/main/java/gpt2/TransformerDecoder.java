@@ -1,3 +1,5 @@
+package gpt2;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,7 +13,6 @@ public class TransformerDecoder
     private final int attentionDividend;
 
     private final Parameters.DecoderParameters params;
-    private final Util util;
 
     private final float epsilon;
 
@@ -27,79 +28,64 @@ public class TransformerDecoder
         this.attentionDividend = (int) sqrt(embeddingSize / headCount);
 
         this.params = params;
-        this.util = config.utilType.util;
         this.epsilon = epsilon;
     }
 
     /**
      * Decoder logic
      *
-     * @param input - input embedding
+     * @param hiddenState - input hidden state
      * @return output embedding
      */
-    public float[] calculate(float[] input)
+    public float[] execute(float[] hiddenState)
     {
         // Attention block
-        float[] result = attentionBlock(input);
+        hiddenState = attentionBlock(hiddenState);
 
         // Feed forward block
-        return feedForwardBlock(result);
+        return feedForwardBlock(hiddenState);
     }
 
-    private float[] attentionBlock(float[] input)
+    private float[] attentionBlock(float[] inputHiddenState)
     {
         // Normalization
-        float[] result = normalize(input, params.norm1Weights, params.norm1Biases);
+        float[] hiddenState = normalize(inputHiddenState, params.norm1Weights, params.norm1Biases);
 
         // Attention layer
-        result = attention(result);
+        hiddenState = attention(hiddenState);
 
         // Residual connection
-        return util.addVectors(result, input);
+        return Util.addVectors(hiddenState, inputHiddenState);
     }
 
-    private float[] normalize(float[] input, float[] weights, float[] biases)
-    {
-        // Standard normalization
-        float[] result = util.normalize(input, epsilon);
-
-        // Applying the trained weights and biases
-        for (int i = 0; i < input.length; i++)
-        {
-            result[i] = result[i] * weights[i] + biases[i];
-        }
-
-        return result;
-    }
-
-    private float[] feedForwardBlock(float[] input)
+    private float[] feedForwardBlock(float[] inputHiddenState)
     {
         // Normalization
-        float[] result = normalize(input, params.norm2Weights, params.norm2Biases);
+        float[] hiddenState = normalize(inputHiddenState, params.norm2Weights, params.norm2Biases);
 
         // Feed forward layers
-        result = feedForward(result);
+        hiddenState = feedForward(hiddenState);
 
         // Residual connection
-        return util.addVectors(result, input);
+        return Util.addVectors(hiddenState, inputHiddenState);
     }
 
-    private float[] attention(float[] embedding)
+    private float[] attention(float[] hiddenState)
     {
         // Calculate the query, key and value vectors for the actual token:
-        float[] query = util.multiplyVectorByMatrix(embedding, params.queryWeighs);
-        query = util.addVectors(query, params.queryBiases);
+        float[] query = Util.multiplyVectorByMatrix(hiddenState, params.queryWeighs);
+        query = Util.addVectors(query, params.queryBiases);
 
-        float[] key = util.multiplyVectorByMatrix(embedding, params.keyWeighs);
-        key = util.addVectors(key, params.keyBiases);
+        float[] key = Util.multiplyVectorByMatrix(hiddenState, params.keyWeighs);
+        key = Util.addVectors(key, params.keyBiases);
 
-        float[] value = util.multiplyVectorByMatrix(embedding, params.valueWeighs);
-        value = util.addVectors(value, params.valueBiases);
+        float[] value = Util.multiplyVectorByMatrix(hiddenState, params.valueWeighs);
+        value = Util.addVectors(value, params.valueBiases);
 
         // Split the query, key and value vectors into pieces for all heads
-        float[][] queries = util.splitVector(query, headCount);
-        float[][] keys = util.splitVector(key, headCount);
-        float[][] values = util.splitVector(value, headCount);
+        float[][] queries = Util.splitVector(query, headCount);
+        float[][] keys = Util.splitVector(key, headCount);
+        float[][] values = Util.splitVector(value, headCount);
 
         // Store the keys and values (these will be available while the following tokens will be processed)
         storedKeys.add(keys);
@@ -117,30 +103,30 @@ public class TransformerDecoder
             for (int pos = 0; pos < storedKeys.size(); pos++)
             {
                 // The score is calculated multiplying the "actual" query vector and the "related" key vector
-                scores[pos] = util.dotProduct(queries[head], storedKeys.get(pos)[head]) / attentionDividend;
+                scores[pos] = Util.dotProduct(queries[head], storedKeys.get(pos)[head]) / attentionDividend;
             }
 
             // Softmax
-            scores = util.softmax(scores);
+            scores = Util.softmax(scores);
 
             // Multiply the value matrices with the scores, and sum up
             for (int pos = 0; pos < storedKeys.size(); pos++)
             {
-                float[] sum = util.multiplyVectorByScalar(storedValues.get(pos)[head], scores[pos]);
-                sums[head] = util.addVectors(sums[head], sum);
+                float[] sum = Util.multiplyVectorByScalar(storedValues.get(pos)[head], scores[pos]);
+                sums[head] = Util.addVectors(sums[head], sum);
             }
         }
 
         // Concatenate the results for all heads
-        float[] flatSums = util.flattenMatrix(sums);
+        float[] flatSums = Util.flattenMatrix(sums);
 
         // Apply the attention projection weights and biases
-        float[] result = util.multiplyVectorByMatrix(flatSums, params.projectionWeights);
+        hiddenState = Util.multiplyVectorByMatrix(flatSums, params.projectionWeights);
 
-        return util.addVectors(result, params.projectionBiases);
+        return Util.addVectors(hiddenState, params.projectionBiases);
     }
 
-    private float[] feedForward(float[] embedding)
+    private float[] feedForward(float[] hiddenState)
     {
         // We have a simple feed forward neural network, which has only two layers:
         // - the first layer has 4 x <embeddingSize> neurons (using a gelu activation function)
@@ -150,24 +136,38 @@ public class TransformerDecoder
         // and a vector to vector addition using the biases
 
         // First layer
-        float[] output = util.multiplyVectorByMatrix(embedding, params.feedForwardLayer1Weights);
-        output = util.addVectors(output, params.feedForwardLayer1Biases);
+        hiddenState = Util.multiplyVectorByMatrix(hiddenState, params.feedForwardLayer1Weights);
+        hiddenState = Util.addVectors(hiddenState, params.feedForwardLayer1Biases);
 
         // Using the gelu activation function, calculating the output of the first layer
         for (int neuron = 0; neuron < 4 * embeddingSize; neuron++)
         {
-            output[neuron] = gelu(output[neuron]);
+            hiddenState[neuron] = gelu(hiddenState[neuron]);
         }
 
         // Second layer (no activation function call)
-        output = util.multiplyVectorByMatrix(output, params.feedForwardLayer2Weights);
-        return util.addVectors(output, params.feedForwardLayer2Biases);
+        hiddenState = Util.multiplyVectorByMatrix(hiddenState, params.feedForwardLayer2Weights);
+        return Util.addVectors(hiddenState, params.feedForwardLayer2Biases);
     }
 
     // Gaussian Error Linear Unit (GELU) cumulative distribution activation function (approximate implementation)
     private static float gelu(float value)
     {
         return (float) (0.5 * value * (1 + tanh(sqrt(2 / PI) * (value + 0.044715 * pow(value, 3)))));
+    }
+
+    private float[] normalize(float[] hiddenState, float[] weights, float[] biases)
+    {
+        // Standard normalization
+        hiddenState = Util.normalize(hiddenState, epsilon);
+
+        // Applying the trained weights and biases
+        for (int i = 0; i < hiddenState.length; i++)
+        {
+            hiddenState[i] = hiddenState[i] * weights[i] + biases[i];
+        }
+
+        return hiddenState;
     }
 
     /**

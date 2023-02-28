@@ -1,3 +1,5 @@
+package gpt2;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.ByteBuffer;
@@ -12,8 +14,6 @@ import java.util.List;
  */
 public class Parameters
 {
-    private final Util util;
-
     public final float[][] tokenEmbeddings;
     public final float[][] positionEmbeddings;
 
@@ -51,8 +51,6 @@ public class Parameters
 
     public Parameters(Config config)
     {
-        util = config.utilType.util;
-
         ModelType modelType = config.modelType;
         int size = modelType.embeddingSize;
         String path = config.parametersPath + "/" + modelType.name() + "/";
@@ -105,8 +103,7 @@ public class Parameters
     private float[][] readMatrix(String fileName, int rows, int cols)
     {
         float[] numbers = read(fileName, rows * cols);
-
-        return util.splitVector(numbers, rows);
+        return Util.splitVector(numbers, rows);
     }
 
     private float[] read(String fileName, int size)

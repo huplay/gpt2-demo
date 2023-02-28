@@ -1,10 +1,11 @@
+package gpt2;
+
 import static java.lang.Math.exp;
 import static java.lang.Math.sqrt;
 
-public class UtilStandard implements Util
+public class Util
 {
-    @Override
-    public float[] addVectors(float[] vector1, float[] vector2)
+    public static float[] addVectors(float[] vector1, float[] vector2)
     {
         float[] ret = new float[vector1.length];
 
@@ -16,8 +17,7 @@ public class UtilStandard implements Util
         return ret;
     }
 
-    @Override
-    public float dotProduct(float[] vector1, float[] vector2)
+    public static float dotProduct(float[] vector1, float[] vector2)
     {
         float sum = 0;
 
@@ -29,8 +29,7 @@ public class UtilStandard implements Util
         return sum;
     }
 
-    @Override
-    public float[] multiplyVectorByScalar(float[] vector, float scalar)
+    public static float[] multiplyVectorByScalar(float[] vector, float scalar)
     {
         float[] ret = new float[vector.length];
 
@@ -42,54 +41,45 @@ public class UtilStandard implements Util
         return ret;
     }
 
-    @Override
-    public float[] multiplyVectorByMatrix(float[] vector, float[][] matrix)
+    public static float[] multiplyVectorByMatrix(float[] vector, float[][] matrix)
     {
         float[] ret = new float[matrix[0].length];
 
-        for (int i = 0; i < matrix[0].length; i++)
+        for (int col = 0; col < matrix[0].length; col++)
         {
-            for (int j = 0; j < vector.length; j++)
+            float sum = 0;
+
+            for (int i = 0; i < vector.length; i++)
             {
-                float sum = 0;
-
-                for (int x = 0; x < vector.length; x++)
-                {
-                    sum = sum + vector[x] * matrix[x][i];
-                }
-
-                ret[i] = sum;
+                sum = sum + vector[i] * matrix[i][col];
             }
+
+            ret[col] = sum;
         }
 
         return ret;
     }
 
-    @Override
-    public float[] multiplyVectorByTransposedMatrix(float[] vector, float[][] matrix)
+    public static float[] multiplyVectorByTransposedMatrix(float[] vector, float[][] matrix)
     {
         float[] ret = new float[matrix.length];
 
-        for (int i = 0; i < matrix.length; i++)
+        for (int row = 0; row < matrix.length; row++)
         {
-            for (int j = 0; j < vector.length; j++)
+            float sum = 0;
+
+            for (int i = 0; i < vector.length; i++)
             {
-                float sum = 0;
-
-                for (int x = 0; x < vector.length; x++)
-                {
-                    sum = sum + vector[x] * matrix[i][x];
-                }
-
-                ret[i] = sum;
+                sum = sum + vector[i] * matrix[row][i];
             }
+
+            ret[row] = sum;
         }
 
         return ret;
     }
 
-    @Override
-    public float[][] splitVector(float[] vector, int count)
+    public static float[][] splitVector(float[] vector, int count)
     {
         int size = vector.length / count;
         float[][] ret = new float[count][size];
@@ -105,17 +95,13 @@ public class UtilStandard implements Util
                 col = 0;
                 segment++;
             }
-            else
-            {
-                col++;
-            }
+            else col++;
         }
 
         return ret;
     }
 
-    @Override
-    public float[] flattenMatrix(float[][] matrix)
+    public static float[] flattenMatrix(float[][] matrix)
     {
         float[] ret = new float[matrix.length * matrix[0].length];
 
@@ -133,8 +119,7 @@ public class UtilStandard implements Util
         return ret;
     }
 
-    @Override
-    public float average(float[] vector)
+    public static float average(float[] vector)
     {
         double sum = 0;
 
@@ -146,8 +131,7 @@ public class UtilStandard implements Util
         return (float) sum / vector.length;
     }
 
-    @Override
-    public float[] softmax(float[] vector)
+    public static float[] softmax(float[] vector)
     {
         double total = 0;
 
@@ -174,8 +158,7 @@ public class UtilStandard implements Util
      * @param epsilon - epsilon in the formula above
      * @return the normalized vector
      */
-    @Override
-    public float[] normalize(float[] vector, float epsilon)
+    public static float[] normalize(float[] vector, float epsilon)
     {
         float average = average(vector);
         float averageDiff = calculateAverageDiff(vector, average, epsilon);
@@ -190,7 +173,7 @@ public class UtilStandard implements Util
         return norm;
     }
 
-    private float calculateAverageDiff(float[] values, float average, float epsilon)
+    private static float calculateAverageDiff(float[] values, float average, float epsilon)
     {
         float[] squareDiff = new float[values.length];
 
@@ -205,15 +188,7 @@ public class UtilStandard implements Util
         return (float) sqrt(averageSquareDiff + epsilon);
     }
 
-    @Override
-    public float[][] sort(float[][] matrix)
-    {
-        // TODO: Instead of a standard implementation I simply called the Nd4j solution
-        return UtilType.ND4J.util.sort(matrix);
-    }
-
-    @Override
-    public int weightedRandomPick(float[] probabilities)
+    public static int weightedRandomPick(float[] probabilities)
     {
         float sum = 0;
         float[] cumulativeProbabilities = new float[probabilities.length];

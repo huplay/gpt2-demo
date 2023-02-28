@@ -4,7 +4,7 @@ This is a demo application which implements the OpenAI GPT-2 artificial intellig
 
 The goal is to demonstrate the decoder-only Transformer architecture (without training), not to create an optimized application. 
 
-TensorFlow or similar tools are NOT used, only the Nd4j for few matrix processing because the naive implementation is very slow. But all functionality is implemented here, even it is possible to avoid using the Nd4j.
+TensorFlow or similar tools are NOT used, all functionality is implemented here.
 
 ## Usage ##
 
@@ -57,7 +57,6 @@ The prompt will be repeated, but it will start a completely new session every ti
 ## Parameters ##
 
 - ``model`` - Model size: SMALL (default), MEDIUM, LARGE, XL
-- ``util`` - Used utility: ND4J (default), STANDARD
 - ``path`` - Path of the parameter files (default: /parameters) 
 - ``maxlength`` - Maximum number of generated tokens
 - ``topk`` - Number of possibilities to chose from as next token

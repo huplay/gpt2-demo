@@ -1,5 +1,6 @@
-import java.util.ArrayList;
-import java.util.List;
+package gpt2;
+
+import java.util.*;
 
 /**
  * Decoder-only Transformer implementation, same architecture as OpenAI GPT-2
@@ -11,7 +12,6 @@ public class Transformer
 
     private final Config config;
     private final Parameters params;
-    private final Util util;
 
     private final TransformerDecoder[] decoders;
 
@@ -22,7 +22,6 @@ public class Transformer
     {
         this.config = config;
         this.params = params;
-        this.util = config.utilType.util;
 
         // Create the decoder stack
         this.decoders = new TransformerDecoder[config.modelType.decoderCount];
@@ -66,7 +65,7 @@ public class Transformer
 
         // Processing the last input token. The output will be the first new token
         float[] embedding = processToken(pos, inputTokens.get(pos));
-        int nextToken = determineOutput(embedding);
+        int nextToken = selectNextToken(embedding);
         result.add(nextToken);
 
         // Now we have to use the transformer again an again, getting new and new tokens, for input passing the previous output
@@ -76,10 +75,10 @@ public class Transformer
             embedding = processToken(pos, nextToken);
 
             // The output will be the next new token
-            nextToken = determineOutput(embedding);
+            nextToken = selectNextToken(embedding);
             result.add(nextToken);
 
-            // Exit if the end-of-text token was chosen or the context size is reached
+            // Exit if the END_OF_TEXT token was chosen or the context size is reached
             if (nextToken == END_OF_TEXT || (inputTokens.size() + result.size() >= config.modelType.contextSize)) break;
         }
 
@@ -97,80 +96,96 @@ public class Transformer
     private float[] processToken(int pos, int token)
     {
         // Word token embedding
-        float[] embedding = params.tokenEmbeddings[token];
+        float[] hiddenState = params.tokenEmbeddings[token];
 
         // Position embedding
-        embedding = util.addVectors(embedding, params.positionEmbeddings[pos]);
+        hiddenState = Util.addVectors(hiddenState, params.positionEmbeddings[pos]);
 
         // Decoder stack
         for (TransformerDecoder decoder : decoders)
         {
-            embedding = decoder.calculate(embedding);
+            hiddenState = decoder.execute(hiddenState);
         }
 
         // Final normalization
-        embedding = util.normalize(embedding, EPSILON);
-        for (int i = 0; i < embedding.length; i++)
+        hiddenState = Util.normalize(hiddenState, EPSILON);
+        for (int i = 0; i < hiddenState.length; i++)
         {
-            embedding[i] = embedding[i] * params.normFinalWeights[i] + params.normFinalBiases[i];
+            hiddenState[i] = hiddenState[i] * params.normFinalWeights[i] + params.normFinalBiases[i];
         }
 
-        return embedding;
+        return hiddenState;
     }
 
     /**
      * Determine the next token, based on the output of the transformer
      *
-     * @param embedding - The output of the transformer
+     * @param output - The output of the transformer
      * @return the token id of the new token
      */
-    private int determineOutput(float[] embedding)
+    private int selectNextToken(float[] output)
     {
-        // Transforming the embedding into token probabilities*, using a simple matrix multiplication
-        // The embedding is a vector (matrix with a single row), so the dimensions are: 1 x embeddingSize
-        // The transposed token embedding matrix has a dimension of embeddingSize x 50257
-        // That's why the result of the matrix multiplication will have a dimension of 1 x 50257, so simply 50257 numbers
-        // This will be treated as a list of token probabilities, ordered by the token id
+        // During the training the expected output was the word token embedding of the next token.
+        // (The parameters were tuned based on the difference to the actual and expected output.)
+        // That's why we hope, the result of a trained system will be a word token embedding. (The embedding of the "best" next token.)
 
-        // * This isn't a real probability, but similar, called logit. logit = ln(probability / 1 - probability)
-        //   This value can be negative as well, but lower value means lower probability,
-        //   so we can use this value filtering out the small probabilities
-        float[] logits = util.multiplyVectorByTransposedMatrix(embedding, params.tokenEmbeddings);
+        // In reality the output won't be matching perfectly to any of the existing embeddings,
+        // but it can be similar to some of these. We have to determine how similar the output to every known token.
 
-        // topK filtering
+        // This similarity-check can be implemented by a simple dot product calculation (multiplying each position and sum up),
+        // because a similar vector will have at least the same sign at all values,
+        // so the multiplication will be positive mostly (negative times negative and positive times positive as well positive)
+        // while a dot product with a less similar vector will contain negative elements as well.
+        // The consequence is that, the dot product with a more similar vector will be a higher number, comparing to a less similar one.
+
+        // Here we calculate the dot product with all token embeddings in a single vector - matrix multiplication
+        // The output is a vector (matrix with a single row), so the dimensions are: 1 * embeddingSize
+        // The transposed token embedding matrix has a dimension of embeddingSize * 50257
+        // That's why the result of the matrix multiplication will have a dimension of 1 * 50257, so simply 50257 numbers
+        // This number (logit) will be higher, if the particular token is more similar to the output
+
+        // We can transform the logit to probability, using the softmax function7
+        // logit = ln(probability / 1 - probability)
+
+        float[] logits = Util.multiplyVectorByTransposedMatrix(output, params.tokenEmbeddings);
 
         // It would be possible to implement here the temperature and topP filter as well:
         // temperature: divide the logits by the temperature (value between 0 and 1)
         // topP filter: on an ordered list of probabilities filter out the remaining after reaching a certain sum percentage
 
-        // Converting the list of logits, ordered by token id into a matrix with two columns:
-        // The first column is the logits, the second column is the token id (index)
-        float[][] indexedLogits = new float[logits.length][2];
+        // But now only the topK filtering will be implemented, so we will select a token of the best k possibilities
+
+        // Converting the list of logits, ordered by token id into an ordered set (using a custom comparator on the logit),
+        // wrapping the token id and logit into a single object (TokenWithLogitComparator):
+
+        TreeSet<TokenLogit> orderedTokenLogits = new TreeSet<>(new TokenLogitComparator());
         for (int i = 0; i < logits.length; i++)
         {
-            indexedLogits[i][0] = logits[i];
-            indexedLogits[i][1] = i;
+            orderedTokenLogits.add(new TokenLogit(i, logits[i]));
         }
 
-        // Now we can sort the rows in this matrix, and the token id information will remain available
-        float[][] sortedLogits = util.sort(indexedLogits);
-
-        // Retain the top k elements (filtering out the rest)
-        // We can omit the token id because we can find it in the sortedLogits array
+        // Retain only the top k elements (filtering out the rest)
         float[] filteredLogits = new float[config.topK];
-        for (int i = 0; i < config.topK; i++)
+        TokenLogit[] filteredTokenLogits = new TokenLogit[config.topK];
+
+        int i = 0;
+        for (TokenLogit indexedLogit : orderedTokenLogits)
         {
-            filteredLogits[i] = sortedLogits[i][0];
+            filteredLogits[i] = indexedLogit.logit;
+            filteredTokenLogits[i] = indexedLogit;
+
+            i++;
+            if (i == config.topK) break;
         }
 
         // Convert the logits into probabilities, using softmax
-        float[] probabilities = util.softmax(filteredLogits);
+        float[] probabilities = Util.softmax(filteredLogits);
 
         // Pick one token randomly, using a weighted random selection.
-        int index = util.weightedRandomPick(probabilities);
+        int index = Util.weightedRandomPick(probabilities);
 
         // Lookup the token id
-        int selectedTokenId = (int)sortedLogits[index][1];
+        int selectedTokenId = filteredTokenLogits[index].tokenId;
 
         // Print the generated tokens one by one.
         // This isn't a perfect solution, because some words or letters represented by multiple tokens.
@@ -188,6 +203,26 @@ public class Transformer
         for (TransformerDecoder decoder : decoders)
         {
             decoder.clear();
+        }
+    }
+
+    private static class TokenLogit
+    {
+        public int tokenId;
+        public float logit;
+
+        public TokenLogit(int tokenId, float logit)
+        {
+            this.tokenId = tokenId;
+            this.logit = logit;
+        }
+    }
+
+    private static class TokenLogitComparator implements Comparator<TokenLogit>
+    {
+        public int compare(TokenLogit a, TokenLogit b)
+        {
+            return a.logit > b.logit ? -1 : 1;
         }
     }
 }

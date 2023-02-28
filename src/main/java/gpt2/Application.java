@@ -1,3 +1,5 @@
+package gpt2;
+
 import java.io.*;
 import java.util.List;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -52,7 +54,6 @@ public class Application
     {
         // Default values
         ModelType modelType = ModelType.SMALL;
-        UtilType utilType = UtilType.ND4J;
         String parametersPath = System.getProperty("user.dir") + "/parameters";
         int maxLength = 25;
         int topK = 40;
@@ -71,7 +72,6 @@ public class Application
                     switch (param)
                     {
                         case "model" -> modelType = ModelType.find(value);
-                        case "util" -> utilType = UtilType.find(value);
                         case "path" -> parametersPath = value;
                         case "maxlength" -> maxLength = readInt(value, maxLength);
                         case "topk" -> topK = readInt(value, topK);
@@ -85,7 +85,6 @@ public class Application
         }
 
         OUT.println("Model type: " + modelType);
-        OUT.println("Utility type: " + utilType);
         OUT.println("Parameter path: " + parametersPath);
         OUT.println("Max length: " + maxLength);
         OUT.println("TopK: " + topK);
@@ -105,7 +104,7 @@ public class Application
 
         Tokenizer tokenizer = new Tokenizer(parametersPath);
 
-        return new Config(modelType, utilType, parametersPath, tokenizer, maxLength, topK);
+        return new Config(modelType, parametersPath, tokenizer, maxLength, topK);
     }
 
     private static int readInt(String value, int defaultValue)
