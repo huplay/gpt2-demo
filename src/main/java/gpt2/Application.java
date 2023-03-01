@@ -23,7 +23,10 @@ public class Application
         Parameters parameters = new Parameters(config);
         OUT.println("Done.");
 
-        OUT.println("Free memory: " + formatMemorySize(Runtime.getRuntime().freeMemory()));
+        OUT.println("Free memory: " + formatSize(Runtime.getRuntime().freeMemory()));
+
+        OUT.println("\nPlease enter a text that the system should continue.");
+        OUT.println("(You can leave it empty. To quit: type 'q'.)");
 
         Transformer transformer = new Transformer(config, parameters);
 
@@ -43,11 +46,13 @@ public class Application
 
             // Convert the output to text and print it
             String response = config.tokenizer.decode(outputTokens);
-            OUT.println(/*response*/); // Commented out because the system is slow, and we printed already the text (token by token)
+            OUT.println(/*response*/); // Commented out because we printed already the text (token by token)
 
             // Starting a completely new session with every input, because this system isn't for chat
             transformer.clear();
         }
+
+        OUT.println("\nHave a nice day!");
     }
 
     private static Config init(String[] args)
@@ -84,20 +89,24 @@ public class Application
             }
         }
 
-        OUT.println("Model type: " + modelType);
-        OUT.println("Parameter path: " + parametersPath);
-        OUT.println("Max length: " + maxLength);
-        OUT.println("TopK: " + topK);
+        OUT.println("Model type: " + modelType
+                + " - Number of parameters: " + Math.round(modelType.getParameterSize() / 1000000d) + " M");
 
         // Memory check
-        long maxMemory = Runtime.getRuntime().maxMemory();
+        long minMemory = modelType.getMinMemory();
+        OUT.println("Minimum necessary memory: " + formatSize(minMemory));
 
-        if (modelType.minMemory * 1024 * 1024 > maxMemory)
+        OUT.println("Parameter path: " + parametersPath);
+        OUT.println("Maximum length of generated text: " + maxLength);
+        OUT.println("Output is selected from the best " + topK + " tokens (topK)");
+
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        if (minMemory > maxMemory)
         {
-            OUT.println("\nERROR: Not enough memory to load parameters! Minimum memory: " + modelType.minMemory + " MByte.");
-            OUT.println("Available memory: " + formatMemorySize(maxMemory));
+            OUT.println("\nERROR: Not enough memory to load the parameters! Minimum memory: " + formatSize(minMemory));
+            OUT.println("Available memory: " + formatSize(maxMemory));
             OUT.println("You can configure the available memory using the -Xmx and -Xms java flags.");
-            OUT.println("(See the batch files.)");
+            OUT.println("(See the .bat files.)");
 
             System.exit(0);
         }
@@ -123,7 +132,7 @@ public class Application
         return ret;
     }
 
-    private static String formatMemorySize(long size)
+    private static String formatSize(long size)
     {
         if (size < 1024) return size + " byte";
 

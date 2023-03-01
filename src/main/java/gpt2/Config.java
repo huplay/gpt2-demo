@@ -8,8 +8,7 @@ public class Config
     public final int maxLength;
     public final int topK;
 
-    public Config(ModelType modelType, String parametersPath, Tokenizer tokenizer, int maxLength,
-                  int topK)
+    public Config(ModelType modelType, String parametersPath, Tokenizer tokenizer, int maxLength, int topK)
     {
         this.modelType = modelType;
         this.parametersPath = parametersPath;

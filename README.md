@@ -1,6 +1,7 @@
 # GPT-2 demo
 
-This is a demo application which implements the OpenAI GPT-2 artificial intelligence language model in Java, for learning purposes.
+This is a demo application which implements the GPT-2 (OpenAI) artificial intelligence language model in Java, for learning purposes.
+(With a little outlook to GPT-3.)
 
 The goal is to demonstrate the decoder-only Transformer architecture (without training), not to create an optimized application. 
 
@@ -113,10 +114,37 @@ GPT-2 has four variants: The smallest has the same size as the GPT-1 (12 decoder
 
 The only architectural change to the GPT-1 is that the normalization within the decoders are moved before the attention and feed forward layers, and a final normalization is added after the last decoder.
 (So instead of att/add/norm/mlp/add/norm it uses norm/att/add/norm/mlp/add steps.)
- 
-## Help ##
+
+### Sparse Transformer ###
+
+(This isn't implemented here.)
+
+- Generating Long Sequences with Sparse Transformers (2019, OpenAI)
+- Rewon Child, Scott Gray, Alec Radford, Ilya Sutskever
+- https://openai.com/blog/sparse-transformer/
+- https://arxiv.org/pdf/1904.10509.pdf
+- Source code: https://github.com/openai/sparse_attention
+
+Proposal for a more efficient but still good performing sparse solution, where every second decoder uses a simplified calculation.
+
+### GPT-3 ###
+
+(This isn't implemented here.)
+
+- Language Models are Few-Shot Learners (2020, OpenAI)
+- Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal, Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu, Clemens Winter, Christopher Hesse, Mark Chen, Eric Sigler, Mateusz Litwin, Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Radford, Ilya Sutskever, Dario Amodei
+- https://arxiv.org/abs/2005.14165
+- https://arxiv.org/pdf/2005.14165v4.pdf
+- https://paperswithcode.com/paper/language-models-are-few-shot-learners/review/
+- Source code (not complete): https://github.com/openai/gpt-3
+
+"Same model and architecture as GPT-2, including the modified initialization, pre-normalization, and reversible tokenization described therein, with the exception that we use alternating dense and locally banded sparse attention patterns in the layers of the transformer, similar to the Sparse Transformer.
+To study the dependence of ML performance on model size, we train 8 different sizes of model, from 125 million parameters to 175 billion parameters, with the last being the model we call GPT-3."
+
+## Read more ##
 
 Jay Alammar: 
 - The Illustrated Transformer: https://jalammar.github.io/illustrated-transformer/
 - The Illustrated GPT-2: https://jalammar.github.io/illustrated-gpt2
+- How GPT-3 Works: https://jalammar.github.io/how-gpt3-works-visualizations-animations/
 
