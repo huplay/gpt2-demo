@@ -66,36 +66,19 @@ public enum ModelType
     {
         long wteSize = (long) tokenCount * embeddingSize;
         long wpeSize = (long) contextSize * embeddingSize;
-        long finalNormSize = embeddingSize * 2L;
+        long finalNormSize = (long) embeddingSize * 2;
 
         return wteSize + wpeSize + (getDecoderParameterSize() * decoderCount) + finalNormSize;
     }
 
     private long getDecoderParameterSize()
     {
-        long qkvSize = embeddingSize * embeddingSize * 3L + embeddingSize * 3L;
+        long qkvSize = ((long) embeddingSize * embeddingSize + embeddingSize) * 3;
         long projSize = (long) embeddingSize * embeddingSize + embeddingSize;
-        long normSize = embeddingSize * 4L;
-        long layer1Size = embeddingSize * embeddingSize * 4L + embeddingSize * 4L;
-        long layer2Size = embeddingSize * 4L * embeddingSize + embeddingSize;
+        long normSize = (long) embeddingSize * 4;
+        long layer1Size = ((long) embeddingSize * embeddingSize + embeddingSize) * 4;
+        long layer2Size = (long) embeddingSize * embeddingSize * 4 + embeddingSize;
 
         return qkvSize + projSize + normSize + layer1Size + layer2Size;
-    }
-
-    public long getMinMemory()
-    {
-        // Every parameter is stored in 4 bytes (float values)
-        long parameterSize = getParameterSize() * 4L;
-
-        // The tokenizer stores the vocabulary 3 times (for encoding/decoding and merges, approx 10 bytes per entry)
-        long tokenizerVocabSize = tokenCount * 30L;
-
-        // We store vectors of the embedding size for each token in the context, in every decoder
-        // Key and value as well (* 2), every number is stored in 4 bytes (float)
-        long kvStoreSize = embeddingSize * contextSize * decoderCount * 8L;
-
-        long otherObjectSize = 500 * 1024 * 1024; // It's a guess
-
-        return parameterSize + tokenizerVocabSize + kvStoreSize + otherObjectSize;
     }
 }

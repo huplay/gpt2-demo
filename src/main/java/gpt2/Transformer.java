@@ -1,6 +1,7 @@
 package gpt2;
 
 import java.util.*;
+import static gpt2.Util.IndexedValue;
 
 /**
  * Decoder-only Transformer implementation, same architecture as OpenAI GPT-2
@@ -41,45 +42,41 @@ public class Transformer
      */
     public List<Integer> processTokens(List<Integer> inputTokens)
     {
-        // Collector of the generated new tokens
-        List<Integer> result = new ArrayList<>();
+        int intputSize = inputTokens.size();
 
-        // Counter of the position of the tokens within the text
-        int pos = 0;
-
-        if (inputTokens.size() == 0)
+        if (intputSize == 0)
         {
             // If the input is empty, use the END_OF_TEXT token as input
             inputTokens.add(END_OF_TEXT);
+            intputSize = 1;
         }
         else
         {
             // Iterating over on the input tokens (excluding the last one) and processing these by the transformer
-            for (; pos < inputTokens.size() - 1; pos++)
+            // We are not interested in the output of the transformer, but the inner state will be stored
+            for (int pos = 0; pos < intputSize - 1; pos++)
             {
-                // We are not interested in the result of the process (no return value),
-                // but the inner state will be stored within the decoders (generated key and value vectors)
                 processToken(pos, inputTokens.get(pos));
             }
         }
 
-        // Processing the last input token. The output will be the first new token
-        float[] embedding = processToken(pos, inputTokens.get(pos));
-        int nextToken = selectNextToken(embedding);
-        result.add(nextToken);
+        // Collector of the generated new tokens
+        List<Integer> result = new ArrayList<>();
 
-        // Now we have to use the transformer again an again, getting new and new tokens, for input passing the previous output
-        for (pos++; pos < config.maxLength + inputTokens.size(); pos++)
+        int nextToken = inputTokens.get(intputSize - 1);
+
+        // Use the transformer again an again to generate new tokens
+        for (int pos = intputSize - 1; pos < config.maxLength + intputSize; pos++)
         {
-            // Add the previously generated new token as input
-            embedding = processToken(pos, nextToken);
+            // Add the last input token or the previously generated new token as input
+            float[] output = processToken(pos, nextToken);
 
             // The output will be the next new token
-            nextToken = selectNextToken(embedding);
+            nextToken = selectNextToken(output);
             result.add(nextToken);
 
             // Exit if the END_OF_TEXT token was chosen or the context size is reached
-            if (nextToken == END_OF_TEXT || (inputTokens.size() + result.size() >= config.modelType.contextSize)) break;
+            if (nextToken == END_OF_TEXT || (intputSize + result.size() >= config.modelType.contextSize)) break;
         }
 
         return result;
@@ -125,68 +122,27 @@ public class Transformer
      */
     private int selectNextToken(float[] output)
     {
-        // During the training the expected output was the word token embedding of the next token.
-        // (The parameters were tuned based on the difference to the actual and expected output.)
-        // That's why we hope, the result of a trained system will be a word token embedding. (The embedding of the "best" next token.)
-
-        // In reality the output won't be matching perfectly to any of the existing embeddings,
-        // but it can be similar to some of these. We have to determine how similar the output to every known tokens.
-
-        // This similarity-check can be implemented by a simple dot product calculation (multiplying each position and sum up),
-        // because a similar vector will have at least the same sign at all values,
-        // so the multiplication will be positive mostly (negative times negative and positive times positive as well positive)
-        // while a dot product with a less similar vector will contain negative elements as well.
-        // The consequence is that, the dot product with a more similar vector will be a higher number, comparing to a less similar one.
-
-        // Here we calculate the dot product with all token embeddings in a single vector - matrix multiplication
-        // The output is a vector (matrix with a single row), so the dimensions are: 1 * embeddingSize
-        // The transposed token embedding matrix has a dimension of embeddingSize * 50257
-        // That's why the result of the matrix multiplication will have a dimension of 1 * 50257, so simply 50257 numbers
-        // This number (logit) will be higher, if the particular token is more similar to the output
-
+        // Multiply (dot product) the output with all token embeddings.
+        // It will give a higher value if the output is more similar to the token embedding
         float[] logits = Util.multiplyVectorByTransposedMatrix(output, params.tokenEmbeddings);
 
-        // It would be possible to implement here the temperature and topP filter as well:
-        // temperature: divide the logits by the temperature (value between 0 and 1)
-        // topP filter: on an ordered list of probabilities filter out the remaining after reaching a certain sum percentage
+        // BTW: It would be possible to implement the temperature and topP filter as well
 
-        // Only the topK filtering is implemented here, so we will select randomly a token of the best k possibilities:
-        // Collectors for the top k tokens (the first one contains only the logit, the second the logit and token id as well)
-        float[] filteredLogits = new float[config.topK];
-        TokenLogit[] filteredTokenLogits = new TokenLogit[config.topK];
+        // Sort (higher to lower) the result of the dot products, retaining the order (index) of the related token
+        List<IndexedValue> orderedLogits = Util.reverseAndFilter(logits, config.topK);
 
-        // This TreeSet with a specific comparator is used to find the elements with the highest logits quickly
-        TreeSet<TokenLogit> orderedTokenLogits = new TreeSet<>(new TokenLogitComparator());
-        for (int i = 0; i < logits.length; i++)
-        {
-            orderedTokenLogits.add(new TokenLogit(i, logits[i]));
-        }
-
-        // Iterate over on the ordered tokenlogits k times, getting the top k elements
-        int k = 0;
-        for (TokenLogit indexedLogit : orderedTokenLogits)
-        {
-            filteredLogits[k] = indexedLogit.logit;
-            filteredTokenLogits[k] = indexedLogit;
-
-            k++;
-            if (k == config.topK) break;
-        }
-
-        // Convert the logits to probabilities (using softmax)
-        // logit = ln(probability / 1 - probability)
-        float[] probabilities = Util.softmax(filteredLogits);
+        // Convert the logits to probabilities
+        float[] probabilities = Util.softmax(orderedLogits);
 
         // Pick one token randomly, using a weighted random selection.
         int index = Util.weightedRandomPick(probabilities);
 
         // Lookup the token id
-        int selectedTokenId = filteredTokenLogits[index].tokenId;
+        int selectedTokenId = orderedLogits.get(index).index;
 
-        // Print the generated token
-        // This isn't a perfect solution, because some words or letters represented by multiple tokens.
-        // But the system is slow, it's better to see the progress than waiting till the end.
-        Application.OUT.print(config.tokenizer.decode(List.of(selectedTokenId)));
+        // Print the generated token - It isn't perfect, because some words or letters represented by multiple tokens.
+        // But it's better to see the progress than waiting till the end.
+        Application.OUT.print(config.tokenizer.decode(Collections.singletonList(selectedTokenId)));
 
         return selectedTokenId;
     }
@@ -199,26 +155,6 @@ public class Transformer
         for (TransformerDecoder decoder : decoders)
         {
             decoder.clear();
-        }
-    }
-
-    private static class TokenLogit
-    {
-        public int tokenId;
-        public float logit;
-
-        public TokenLogit(int tokenId, float logit)
-        {
-            this.tokenId = tokenId;
-            this.logit = logit;
-        }
-    }
-
-    private static class TokenLogitComparator implements Comparator<TokenLogit>
-    {
-        public int compare(TokenLogit a, TokenLogit b)
-        {
-            return Float.compare(b.logit, a.logit);
         }
     }
 }

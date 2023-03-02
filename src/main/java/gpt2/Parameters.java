@@ -112,7 +112,7 @@ public class Parameters
 
         if (file.exists())
         {
-            if (file.length() != size * 4L)
+            if (file.length() != (long) size * 4)
             {
                 throw new RuntimeException("The size of the file (" + fileName + ", " + file.length() + ") is incorrect. Expected: " + size * 4);
             }

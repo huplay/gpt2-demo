@@ -2,14 +2,15 @@ package gpt2;
 
 import java.io.*;
 import java.util.List;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Application
 {
-    public static final PrintStream OUT = new PrintStream(System.out, true, UTF_8);
+    public static PrintStream OUT;
 
     public static void main(String... args) throws Exception
     {
+        OUT = new PrintStream(System.out, true, "utf-8");
+
         OUT.println("  _____________________________      ________        ___");
         OUT.println(" /  _____/\\______   \\__    ___/      \\_____  \\    __|  /____   _____   ____");
         OUT.println("/   \\  ___ |     ___/ |    |  ______  /  ____/   / __ |/ __ \\ /     \\ /  _ \\");
@@ -22,8 +23,6 @@ public class Application
         OUT.print("\nLoading trained parameters... ");
         Parameters parameters = new Parameters(config);
         OUT.println("Done.");
-
-        OUT.println("Free memory: " + formatSize(Runtime.getRuntime().freeMemory()));
 
         OUT.println("\nPlease enter a text that the system should continue.");
         OUT.println("(You can leave it empty. To quit: type 'q'.)");
@@ -74,13 +73,10 @@ public class Application
                     String param = parts[0].toLowerCase();
                     String value = parts[1];
 
-                    switch (param)
-                    {
-                        case "model" -> modelType = ModelType.find(value);
-                        case "path" -> parametersPath = value;
-                        case "maxlength" -> maxLength = readInt(value, maxLength);
-                        case "topk" -> topK = readInt(value, topK);
-                    }
+                    if (param.equals("model")) modelType = ModelType.find(value);
+                    else if (param.equals("path")) parametersPath = value;
+                    else if (param.equals("maxlength")) maxLength = readInt(value, maxLength);
+                    else if (param.equals("topk")) topK = readInt(value, topK);
                 }
                 else
                 {
@@ -91,25 +87,9 @@ public class Application
 
         OUT.println("Model type: " + modelType
                 + " - Number of parameters: " + Math.round(modelType.getParameterSize() / 1000000d) + " M");
-
-        // Memory check
-        long minMemory = modelType.getMinMemory();
-        OUT.println("Minimum necessary memory: " + formatSize(minMemory));
-
         OUT.println("Parameter path: " + parametersPath);
         OUT.println("Maximum length of generated text: " + maxLength);
         OUT.println("Output is selected from the best " + topK + " tokens (topK)");
-
-        long maxMemory = Runtime.getRuntime().maxMemory();
-        if (minMemory > maxMemory)
-        {
-            OUT.println("\nERROR: Not enough memory to load the parameters! Minimum memory: " + formatSize(minMemory));
-            OUT.println("Available memory: " + formatSize(maxMemory));
-            OUT.println("You can configure the available memory using the -Xmx and -Xms java flags.");
-            OUT.println("(See the .bat files.)");
-
-            System.exit(0);
-        }
 
         Tokenizer tokenizer = new Tokenizer(parametersPath);
 
@@ -130,15 +110,5 @@ public class Application
         }
 
         return ret;
-    }
-
-    private static String formatSize(long size)
-    {
-        if (size < 1024) return size + " byte";
-
-        String[] units = new String[] {"kByte", "MByte", "GByte", "PByte", "EByte"};
-        int scale = (63 - Long.numberOfLeadingZeros(size)) / 10;
-        double quantity = (double) size / (1L << (scale * 10));
-        return String.format("%.1f %s", quantity, units[scale - 1]);
     }
 }

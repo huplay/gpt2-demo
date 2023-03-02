@@ -1,5 +1,10 @@
 package gpt2;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.TreeSet;
+
 import static java.lang.Math.exp;
 import static java.lang.Math.sqrt;
 
@@ -131,10 +136,47 @@ public class Util
         return (float) sum / vector.length;
     }
 
+    public static float averageDiff(float[] values, float average, float epsilon)
+    {
+        float[] squareDiff = new float[values.length];
+
+        for (int i = 0; i < values.length; i++)
+        {
+            float diff = values[i] - average;
+            squareDiff[i] = diff * diff;
+        }
+
+        float averageSquareDiff = average(squareDiff);
+
+        return (float) sqrt(averageSquareDiff + epsilon);
+    }
+
+    /**
+     * Standard normalization:
+     *    (value - avg) * sqrt( (value - avg)^2 + epsilon )
+     *
+     * @param vector - input vector
+     * @param epsilon - epsilon in the formula above
+     * @return the normalized vector
+     */
+    public static float[] normalize(float[] vector, float epsilon)
+    {
+        float average = average(vector);
+        float averageDiff = averageDiff(vector, average, epsilon);
+
+        float[] norm = new float[vector.length];
+
+        for (int i = 0; i < vector.length; i++)
+        {
+            norm[i] = (vector[i] - average) / averageDiff;
+        }
+
+        return norm;
+    }
+
     public static float[] softmax(float[] vector)
     {
         double total = 0;
-
         for (float value : vector)
         {
             total = total + exp(value);
@@ -150,42 +192,22 @@ public class Util
         return ret;
     }
 
-    /**
-     * Standard normalization:
-     *    (value - avg) * sqrt( (value - avg)^2 + epsilon )
-     *
-     * @param vector - input vector
-     * @param epsilon - epsilon in the formula above
-     * @return the normalized vector
-     */
-    public static float[] normalize(float[] vector, float epsilon)
+    public static float[] softmax(List<IndexedValue> values)
     {
-        float average = average(vector);
-        float averageDiff = calculateAverageDiff(vector, average, epsilon);
-
-        float[] norm = new float[vector.length];
-
-        for (int i = 0; i < vector.length; i++)
+        double total = 0;
+        for (IndexedValue value : values)
         {
-            norm[i] = (vector[i] - average) / averageDiff;
+            total = total + exp(value.value);
         }
 
-        return norm;
-    }
+        float[] ret = new float[values.size()];
 
-    private static float calculateAverageDiff(float[] values, float average, float epsilon)
-    {
-        float[] squareDiff = new float[values.length];
-
-        for (int i = 0; i < values.length; i++)
+        for (int i = 0; i < values.size(); i++)
         {
-            float diff = values[i] - average;
-            squareDiff[i] = diff * diff;
+            ret[i] = (float) (exp(values.get(i).value) / total);
         }
 
-        float averageSquareDiff = average(squareDiff);
-
-        return (float) sqrt(averageSquareDiff + epsilon);
+        return ret;
     }
 
     public static int weightedRandomPick(float[] probabilities)
@@ -210,5 +232,46 @@ public class Util
         }
 
         return index;
+    }
+
+    public static List<IndexedValue> reverseAndFilter(float[] values, int count)
+    {
+        TreeSet<IndexedValue> indexedValues = new TreeSet<>(new ReverseComparator());
+        for (int i = 0; i < values.length; i++)
+        {
+            indexedValues.add(new IndexedValue(values[i], i));
+        }
+
+        List<IndexedValue> filteredValues = new ArrayList<>(count);
+
+        int i = 0;
+        for (IndexedValue indexedValue : indexedValues)
+        {
+            filteredValues.add(indexedValue);
+            i++;
+            if (i == count) break;
+        }
+
+        return filteredValues;
+    }
+
+    public static class IndexedValue
+    {
+        public float value;
+        public int index;
+
+        public IndexedValue(float value, int index)
+        {
+            this.value = value;
+            this.index = index;
+        }
+    }
+
+    private static class ReverseComparator implements Comparator<IndexedValue>
+    {
+        public int compare(IndexedValue a, IndexedValue b)
+        {
+            return Float.compare(b.value, a.value);
+        }
     }
 }

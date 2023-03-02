@@ -1,7 +1,5 @@
 package gpt2;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -148,23 +146,40 @@ public class Tokenizer
         try
         {
             String fileName = path + "/" + ENCODER_FILENAME;
-
             File file = new File(fileName);
-            FileInputStream inputStream = new FileInputStream(file);
+            Scanner scanner = new Scanner(file);
 
-            ObjectMapper mapper = new ObjectMapper();
-
-            Map<String, Object> entries = mapper.readValue(inputStream, Map.class);
-
-            for (Map.Entry<String, Object> entry: entries.entrySet())
+            while (scanner.hasNext())
             {
-                Object value = entry.getValue();
+                String first = scanner.next();
 
-                if (value instanceof Integer)
+                if (first.startsWith("{")) first = first.substring(1);
+                if (first.startsWith("\"")) first = first.substring(1);
+                if (first.endsWith(":")) first = first.substring(0, first.length() - 1);
+                if (first.endsWith("\"")) first = first.substring(0, first.length() - 1);
+
+                first = first.replace("\\\"", "\"");
+                first = first.replace("\\'", "'");
+                first = first.replace("\\\\", "\\");
+
+                while (true)
                 {
-                    tokenEncoding.put((int) entry.getValue(), entry.getKey());
-                    tokenDecoding.put(entry.getKey(), (int) entry.getValue());
+                    int i = first.indexOf("\\u");
+                    if (i == -1) break;
+
+                    String hex = first.substring(i + 2, i + 6);
+                    first = first.replace("\\u" + hex, "" + (char)Integer.parseInt(hex, 16));
                 }
+
+                String second = scanner.next();
+
+                if (second.endsWith(",")) second = second.substring(0, second.length() - 1);
+                if (second.endsWith("}")) second = second.substring(0, second.length() - 1);
+
+                int value = Integer.parseInt(second);
+
+                tokenEncoding.put(value, first);
+                tokenDecoding.put(first, value);
             }
         }
         catch (IOException e)
@@ -178,10 +193,8 @@ public class Tokenizer
         try
         {
             String fileName = path + "/" + VOCAB_FILENAME;
-
             File file = new File(fileName);
             FileInputStream inputStream = new FileInputStream(file);
-
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
 
             reader.readLine(); // The first line is a comment
@@ -236,15 +249,15 @@ public class Tokenizer
 
         while (true)
         {
-            Pair bigram = findFirstPair(pairs);
-            if (bigram == null) break;
+            Pair pair = findFirstPair(pairs);
+            if (pair == null) break;
 
             List<String> newWord = new ArrayList<>();
 
             int i = 0;
             while (i < word.size())
             {
-                int j = findFromIndex(word, bigram.left, i);
+                int j = findFromIndex(word, pair.left, i);
 
                 if (j != -1)
                 {
@@ -257,9 +270,9 @@ public class Tokenizer
                     break;
                 }
 
-                if (word.get(i).equals(bigram.left) && i < word.size() - 1 && word.get(i + 1).equals(bigram.right))
+                if (word.get(i).equals(pair.left) && i < word.size() - 1 && word.get(i + 1).equals(pair.right))
                 {
-                    newWord.add(bigram.left + bigram.right);
+                    newWord.add(pair.left + pair.right);
                     i = i + 2;
                 }
                 else

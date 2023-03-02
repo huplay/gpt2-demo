@@ -55,6 +55,8 @@ The app shows a prompt, where you can provide a starting text which will be cont
 
 The prompt will be repeated, but it will start a completely new session every time. (This isn't for chatting.)
 
+Make sure you have enough memory for the particular model type. (A recommended value is specified in the .bat files using the -Xmx and -Xms flags.)
+
 ## Parameters ##
 
 - ``model`` - Model size: SMALL (default), MEDIUM, LARGE, XL

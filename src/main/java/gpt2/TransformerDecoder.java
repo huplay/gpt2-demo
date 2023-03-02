@@ -8,27 +8,25 @@ import static java.lang.Math.pow;
 
 public class TransformerDecoder
 {
-    private final int embeddingSize;
-    private final int headCount;
-    private final int attentionDividend;
-
     private final Parameters.DecoderParameters params;
 
     private final float epsilon;
+    private final int embeddingSize;
+    private final int headCount;
+    private final int attentionDividend;
 
     private final List<float[][]> storedKeys = new ArrayList<>();
     private final List<float[][]> storedValues = new ArrayList<>();
 
     public TransformerDecoder(Config config, Parameters.DecoderParameters params, float epsilon)
     {
+        this.params = params;
+        this.epsilon = epsilon;
         this.embeddingSize = config.modelType.embeddingSize;
         this.headCount = config.modelType.headCount;
 
         // The vector size is always 64, so this is always 8, it is possible to convert to int.
-        this.attentionDividend = (int) sqrt(embeddingSize / headCount);
-
-        this.params = params;
-        this.epsilon = epsilon;
+        this.attentionDividend = (int) sqrt((float) embeddingSize / headCount);
     }
 
     /**
@@ -122,7 +120,6 @@ public class TransformerDecoder
 
         // Apply the attention projection weights and biases
         hiddenState = Util.multiplyVectorByMatrix(flatSums, params.projectionWeights);
-
         return Util.addVectors(hiddenState, params.projectionBiases);
     }
 
